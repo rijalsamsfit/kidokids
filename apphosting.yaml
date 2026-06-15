@@ -1,0 +1,9 @@
+# apphosting.yaml
+version: v1
+build:
+  # Kita paksa dia pake command ini
+  build_command: npm run build
+  # Kita kasih tahu output-nya di mana
+  output_directory: .next
+# Menghindari error karena versi Node yang beda
+runtime: nodejs20
