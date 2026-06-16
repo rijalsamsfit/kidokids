@@ -5,9 +5,9 @@ import Navigation from "@/components/Navigation";
 import MissionForm from "@/components/MissionForm";
 import { addMissionToDB, getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
 import { getChildProfile } from "@/lib/childService";
+import { addRewardToDB, getRewardsFromDB, deleteRewardFromDB } from "@/lib/rewardService";
 import { auth } from "@/lib/firebase";
-// ✅ Tambah ikon Sparkles untuk Rekomendasi
-import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Gift, Store, Coins, Sparkles } from "lucide-react";
+import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Gift, Store, Coins, Sparkles, Trash2 } from "lucide-react";
 
 export default function ParentDashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -17,13 +17,12 @@ export default function ParentDashboard() {
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // ✅ STATE: Untuk Toko Kido
+  // STATE: Untuk Toko Kido
   const [isRewardFormOpen, setIsRewardFormOpen] = useState(false);
   const [rewardTitle, setRewardTitle] = useState("");
   const [rewardCost, setRewardCost] = useState<number | "">(30);
   const [rewards, setRewards] = useState<any[]>([]);
 
-  // ✅ TEMPLATE HADIAH SAKTI (AUTO-FILL)
   const rewardTemplates = [
     { title: "Main HP 1 Jam", cost: 50 },
     { title: "Beli Es Krim", cost: 30 },
@@ -45,13 +44,15 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [profile, missions] = await Promise.all([
+      const [profile, missions, fetchedRewards] = await Promise.all([
         getChildProfile(),
-        getMissionsFromDB()
+        getMissionsFromDB(),
+        getRewardsFromDB()
       ]);
       
       setChildData(profile);
       setPendingMissions(missions);
+      setRewards(fetchedRewards); 
     } catch (error) {
       console.error("Gagal menarik data dasbor:", error);
     } finally {
@@ -61,7 +62,6 @@ export default function ParentDashboard() {
 
   const handleAddMission = async (newMission: any) => {
     try {
-      // ✅ Tambahin newMission.isFavorite di belakang
       await addMissionToDB(newMission.title, newMission.xp, newMission.time, newMission.isFavorite);
       fetchDashboardData(); 
       setIsFormOpen(false); 
@@ -83,14 +83,32 @@ export default function ParentDashboard() {
     }
   };
 
-  const handleAddReward = () => {
+  const handleAddReward = async () => {
     if (!rewardTitle) return alert("Nama hadiah harus diisi!");
-    if (rewardCost === "" || rewardCost <= 0) return alert("Harga koin harus lebih dari 0!"); // ✅ Cegah input error
+    if (rewardCost === "" || rewardCost <= 0) return alert("Harga koin harus lebih dari 0!");
     
-    alert(`UI Berhasil! Hadiah "${rewardTitle}" seharga ${rewardCost} Koin siap dimasukkan ke Firebase di tahap selanjutnya.`);
-    setIsRewardFormOpen(false);
-    setRewardTitle("");
-    setRewardCost(30); // ✅ Reset balik ke 30 setelah simpan
+    try {
+      await addRewardToDB(rewardTitle, Number(rewardCost));
+      alert(`🎉 Hadiah "${rewardTitle}" berhasil ditambahkan ke Etalase!`);
+      setIsRewardFormOpen(false);
+      setRewardTitle("");
+      setRewardCost(30);
+      fetchDashboardData(); 
+    } catch (error) {
+      alert("Gagal menyimpan hadiah. Pastikan koneksi aman.");
+    }
+  };
+
+  const handleDeleteReward = async (id: string) => {
+    const confirmDelete = window.confirm("Yakin mau hapus hadiah ini dari toko?");
+    if (!confirmDelete) return;
+
+    try {
+      await deleteRewardFromDB(id);
+      fetchDashboardData(); 
+    } catch (error) {
+      alert("Gagal menghapus hadiah.");
+    }
   };
 
   if (isLoading && !childData) {
@@ -197,27 +215,60 @@ export default function ParentDashboard() {
               <Gift className="w-5 h-5 text-purple-500" />
               <span>Etalase Hadiah</span>
             </h2>
+            {/* ✅ PENUTUP TAG YANG BENAR (TYPO KEMARIN DI SINI) */}
+            {rewards.length > 0 && (
+              <button onClick={() => setIsRewardFormOpen(true)} className="text-purple-600 hover:bg-purple-100 bg-purple-50 p-1.5 rounded-lg transition-colors">
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center space-y-3 relative overflow-hidden">
-            <div className="absolute -right-6 -top-6 text-purple-50 opacity-50"><Store className="w-32 h-32" /></div>
-            
-            <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center border border-purple-100 relative z-10">
-              <Store className="w-8 h-8 text-purple-500" />
-            </div>
-            <div className="relative z-10">
-              <p className="font-bold text-slate-700 text-[15px]">Toko Masih Kosong</p>
-              <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto leading-relaxed">
-                Tambahkan hadiah seperti "Main PS 1 Jam" agar anak makin semangat kumpulin koin!
-              </p>
-            </div>
-            <button 
-              onClick={() => setIsRewardFormOpen(true)} 
-              className="mt-2 bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2.5 rounded-xl text-sm font-extrabold flex items-center space-x-2 transition-colors relative z-10 shadow-sm"
-            >
-              <Plus className="w-4 h-4 border-2 border-purple-700 rounded-full p-0.5" /> 
-              <span>Buat Daftar Hadiah</span>
-            </button>
+          <div className={`bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col relative overflow-hidden ${rewards.length === 0 ? 'items-center justify-center text-center' : ''}`}>
+            {rewards.length === 0 ? (
+              <>
+                <div className="absolute -right-6 -top-6 text-purple-50 opacity-50"><Store className="w-32 h-32" /></div>
+                <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center border border-purple-100 relative z-10">
+                  <Store className="w-8 h-8 text-purple-500" />
+                </div>
+                <div className="relative z-10 mt-3">
+                  <p className="font-bold text-slate-700 text-[15px]">Toko Masih Kosong</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto leading-relaxed">
+                    Tambahkan hadiah seperti "Main PS 1 Jam" agar anak makin semangat kumpulin koin!
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setIsRewardFormOpen(true)} 
+                  className="mt-4 bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2.5 rounded-xl text-sm font-extrabold flex items-center space-x-2 transition-colors relative z-10 shadow-sm"
+                >
+                  <Plus className="w-4 h-4 border-2 border-purple-700 rounded-full p-0.5" /> 
+                  <span>Buat Daftar Hadiah</span>
+                </button>
+              </>
+            ) : (
+              <div className="w-full space-y-3 z-10 relative">
+                {rewards.map(reward => (
+                  <div key={reward.id} className="flex items-center justify-between bg-purple-50/50 p-4 rounded-2xl border border-purple-100 hover:border-purple-200 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-purple-100 rounded-xl">
+                        <Gift className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-700">{reward.title}</p>
+                        <p className="text-sm font-extrabold text-amber-500 flex items-center gap-1 mt-0.5">
+                          <Coins className="w-4 h-4" /> {reward.cost} Koin
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteReward(reward.id)} 
+                      className="p-2 text-rose-400 hover:bg-rose-100 rounded-xl transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -236,7 +287,6 @@ export default function ParentDashboard() {
         <MissionForm onClose={() => setIsFormOpen(false)} onSubmit={handleAddMission} />
       )}
 
-      {/* ✅ POP-UP FORM BARU DENGAN AUTO-FILL TEMPLATE */}
       {isRewardFormOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in duration-200">
           <div className="bg-white w-full sm:w-[400px] max-h-[90vh] overflow-y-auto rounded-t-[2rem] sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
@@ -249,7 +299,6 @@ export default function ParentDashboard() {
               </button>
             </div>
 
-            {/* 🔥 REKOMENDASI CEPAT */}
             <div className="mb-6">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 mb-2 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-500" /> Pilih Cepat (Sekali Klik)
@@ -270,7 +319,6 @@ export default function ParentDashboard() {
               </div>
             </div>
 
-            {/* Pembatas Visual */}
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px bg-slate-200 flex-1"></div>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ATAU KETIK CUSTOM</span>
@@ -296,12 +344,12 @@ export default function ParentDashboard() {
                     <Coins className="w-6 h-6 text-amber-500" />
                   </div>
                   <input 
-                  type="number" 
-                  value={rewardCost}
-                  onChange={(e) => setRewardCost(e.target.value === "" ? "" : Number(e.target.value))} // ✅ Logika baru yang mulus
-                  min="1"
-                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-black text-slate-700 text-lg" 
-                />
+                    type="number" 
+                    value={rewardCost}
+                    onChange={(e) => setRewardCost(e.target.value === "" ? "" : Number(e.target.value))}
+                    min="1"
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-black text-slate-700 text-lg" 
+                  />
                 </div>
               </div>
             </div>
@@ -316,12 +364,13 @@ export default function ParentDashboard() {
         </div>
       )}
 
+      {/* ✅ FIX TS ERROR GAMBAR (string | null) */}
       {selectedImage && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
           <button onClick={() => setSelectedImage(null)} className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md">
             <X className="w-6 h-6" />
           </button>
-          <img src={selectedImage} alt="Zoom Bukti Misi" className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300" />
+          <img src={selectedImage || ""} alt="Zoom Bukti Misi" className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300" />
         </div>
       )}
     </div>
