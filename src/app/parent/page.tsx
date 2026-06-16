@@ -3,20 +3,21 @@
 import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import MissionForm from "@/components/MissionForm";
-// ✅ Import fungsi baru reviewMissionInDB
 import { addMissionToDB, getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
 import { getChildProfile } from "@/lib/childService";
 import { auth } from "@/lib/firebase";
-// ✅ Tambahan ikon ThumbsUp, ThumbsDown, dan Eye
-import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye } from "lucide-react";
+// ✅ Tambahan ikon ZoomIn dan X untuk fitur Zoom Foto
+import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X } from "lucide-react";
 
 export default function ParentDashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
   const [childData, setChildData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // ✅ STATE BARU: Untuk nampung foto yang lagi di-zoom
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Menunggu Firebase Auth selesai mengecek sesi login sebelum menarik data
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
@@ -31,7 +32,6 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Menarik data profil anak dan daftar misi secara bersamaan dari Cloud
       const [profile, missions] = await Promise.all([
         getChildProfile(),
         getMissionsFromDB()
@@ -49,28 +49,27 @@ export default function ParentDashboard() {
   const handleAddMission = async (newMission: any) => {
     try {
       await addMissionToDB(newMission.title, newMission.xp, newMission.time);
-      fetchDashboardData(); // Refresh data setelah simpan sukses
+      fetchDashboardData(); 
       setIsFormOpen(false); 
     } catch (error) {
       alert("Gagal menyimpan misi, pastikan koneksi internetmu lancar!");
     }
   };
 
-  // ✅ FUNGSI BARU: Penilaian Misi (Approve / Reject)
   const handleReview = async (missionId: string, status: "approved" | "rejected", xpReward: number) => {
     const confirmAction = window.confirm(`Apakah kamu yakin ingin ${status === "approved" ? "MENYETUJUI" : "MENOLAK"} misi ini?`);
     if (!confirmAction) return;
 
     try {
+      // ✅ Mengirim ID, Status, dan Nilai XP Dinamis ke Database
       await reviewMissionInDB(missionId, status, xpReward);
       alert(status === "approved" ? "🎉 Misi disetujui! XP & Koin telah dikirim ke akun anak." : "Misi ditolak. Anak diminta mengirim ulang foto.");
-      fetchDashboardData(); // Refresh list dasbor untuk menghilangkan tombol verifikasi
+      fetchDashboardData(); 
     } catch (error) {
       alert("Gagal memproses tindakan. Coba lagi.");
     }
   };
 
-  // Layar loading sementara saat data profil sedang ditarik dari Firebase
   if (isLoading && !childData) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-emerald-600 animate-pulse">
@@ -91,7 +90,6 @@ export default function ParentDashboard() {
         <div className="mt-6 bg-emerald-500/50 p-4 rounded-2xl flex items-center justify-between border border-emerald-400/50 backdrop-blur-sm">
           <div className="flex items-center space-x-4">
             <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-emerald-600 font-black text-2xl shadow-inner uppercase">
-              {/* Ambil huruf pertama dari nama anak */}
               {childData?.name ? childData.name.charAt(0) : "?"}
             </div>
             <div>
@@ -127,7 +125,6 @@ export default function ParentDashboard() {
               <p className="text-center text-slate-400 text-sm py-4">Belum ada misi. Yuk buat misi baru!</p>
             )}
             
-            {/* ✅ DESAIN MISI BARU DENGAN FITUR CEK FOTO ANAK */}
             {pendingMissions.map((mission) => (
               <div key={mission.id} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col space-y-3">
                 <div className="flex items-center justify-between">
@@ -141,7 +138,7 @@ export default function ParentDashboard() {
                     </div>
                   </div>
                   
-                  {/* Lencana Status Dinamis */}
+                  {/* Lencana Status */}
                   {mission.status === 'approved' && (
                     <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-wider">Disetujui</span>
                   )}
@@ -156,17 +153,28 @@ export default function ParentDashboard() {
                   )}
                 </div>
 
-                {/* JIKA ANAK SUDAH UPLOAD FOTO, TAMPILKAN PREVIEW DAN TOMBOL EKSEKUSI */}
+                {/* AREA FOTO & VERIFIKASI */}
                 {mission.status === "pending_approval" && mission.proofImgUrl && (
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3 mt-2">
                     <p className="text-xs font-bold text-slate-500 flex items-center space-x-1">
-                      <Eye className="w-3.5 h-3.5" /> <span>Bukti foto dari Anak:</span>
+                      <Eye className="w-3.5 h-3.5" /> <span>Klik foto untuk memperbesar:</span>
                     </p>
-                    <img 
-                      src={mission.proofImgUrl} 
-                      alt="Bukti Misi Anak" 
-                      className="w-full h-36 object-cover rounded-xl shadow-inner border border-slate-200"
-                    />
+                    
+                    {/* ✅ Thumbnail Foto yang bisa diklik */}
+                    <div 
+                      className="relative group cursor-pointer overflow-hidden rounded-xl border border-slate-200"
+                      onClick={() => setSelectedImage(mission.proofImgUrl)}
+                    >
+                      <img 
+                        src={mission.proofImgUrl} 
+                        alt="Bukti Misi Anak" 
+                        className="w-full h-36 object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <ZoomIn className="text-white w-8 h-8 drop-shadow-md" />
+                      </div>
+                    </div>
+
                     <div className="flex space-x-2 pt-1">
                       <button
                         onClick={() => handleReview(mission.id, "approved", mission.xpReward || mission.xp)}
@@ -207,6 +215,23 @@ export default function ParentDashboard() {
           onClose={() => setIsFormOpen(false)} 
           onSubmit={handleAddMission} 
         />
+      )}
+
+      {/* ✅ POPUP ZOOM FOTO (LIGHTBOX) */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
+          <button 
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img 
+            src={selectedImage} 
+            alt="Zoom Bukti Misi" 
+            className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+          />
+        </div>
       )}
     </div>
   );

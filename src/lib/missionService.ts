@@ -1,6 +1,6 @@
-import { collection, addDoc, getDocs, doc, updateDoc, query, where, increment } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; // ✅ Tambahan untuk kelola berkas gambar
-import { db, auth, storage } from "./firebase"; // ✅ Pastikan 'storage' sudah di-export di firebase.ts lu
+import { collection, addDoc, getDocs, doc, updateDoc, query, where, increment, getDoc } from "firebase/firestore"; 
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; 
+import { db, auth, storage } from "./firebase"; 
 
 const missionsCollection = collection(db, "missions");
 
@@ -9,7 +9,6 @@ const missionsCollection = collection(db, "missions");
  */
 export const addMissionToDB = async (title: string, xpReward: number, time: string) => {
   try {
-    // Ambil ID unik pengguna yang sedang login
     const user = auth.currentUser;
     if (!user) throw new Error("Kamu belum login!");
 
@@ -19,7 +18,6 @@ export const addMissionToDB = async (title: string, xpReward: number, time: stri
       time,
       status: "pending",
       createdAt: new Date().toISOString(),
-      // KUNCI RAHASIA: Misi ini sekarang diikat ke ID pengguna yang membuatnya
       userId: user.uid 
     });
     
@@ -36,9 +34,8 @@ export const addMissionToDB = async (title: string, xpReward: number, time: stri
 export const getMissionsFromDB = async () => {
   try {
     const user = auth.currentUser;
-    if (!user) return []; // Kalau belum login, jangan tampilkan apa-apa
+    if (!user) return []; 
 
-    // FILTER: Minta ke Firebase hanya misi yang memiliki userId kita
     const q = query(missionsCollection, where("userId", "==", user.uid));
     const snapshot = await getDocs(q);
     
@@ -47,8 +44,6 @@ export const getMissionsFromDB = async () => {
       ...doc.data()
     }));
     
-    // Urutkan manual di sini supaya yang terbaru di atas 
-    // (Menghindari error index rumit dari Firestore)
     missions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     return missions;
@@ -78,22 +73,18 @@ export const completeMissionInDB = async (missionId: string) => {
 };
 
 /**
- * 🔥 4. BARU! Fungsi untuk Anak: Mengirim Bukti Foto & Mengubah Status jadi Pending Approval
- * Berkas gambar akan disimpan rapi di Firebase Storage folder 'proofs/ID_USER/ID_MISI.jpg'
+ * 4. Fungsi untuk Anak: Mengirim Bukti Foto & Mengubah Status jadi Pending Approval
  */
 export const submitMissionProofInDB = async (missionId: string, imageFile: File) => {
   try {
     const user = auth.currentUser;
     if (!user) throw new Error("Kamu belum login!");
 
-    // A. Unggah berkas mentah/kompresi ke Firebase Storage
     const storageRef = ref(storage, `proofs/${user.uid}/${missionId}.jpg`);
     await uploadBytes(storageRef, imageFile);
     
-    // B. Minta URL publik gambar dari Cloud Storage
     const downloadUrl = await getDownloadURL(storageRef);
 
-    // C. Tempel URL foto dan ganti status misi di Firestore menjadi 'pending_approval'
     const missionRef = doc(db, "missions", missionId);
     await updateDoc(missionRef, {
       status: "pending_approval",
@@ -109,26 +100,33 @@ export const submitMissionProofInDB = async (missionId: string, imageFile: File)
 };
 
 /**
- * 🔥 5. BARU! Fungsi untuk Orang Tua: Memberikan Ulasan Misi (Setuju / Tolak)
- * Jika disetujui, saldo XP dan Koin anak di cloud otomatis bertambah secara realtime!
+ * 🔥 5. PERBAIKAN! Fungsi untuk Orang Tua: Memberikan Ulasan Misi
+ * Sekarang XP masuk ke akun ANAK yang benar (berdasarkan userId misi), bukan orang tua.
  */
 export const reviewMissionInDB = async (missionId: string, status: "approved" | "rejected", xpReward: number) => {
   try {
     const user = auth.currentUser;
     if (!user) throw new Error("Kamu belum login!");
 
+    // 1. Ambil data misi untuk mendapatkan childUserId (ID si Anak)
     const missionRef = doc(db, "missions", missionId);
+    const missionSnap = await getDoc(missionRef); 
     
-    // A. Update status final peninjauan misi di Firestore
+    if (!missionSnap.exists()) throw new Error("Misi tidak ditemukan");
+    
+    const missionData = missionSnap.data();
+    const childUserId = missionData.userId; // ✅ ID Anak yang benar
+
+    // 2. Update status misi
     await updateDoc(missionRef, {
       status: status,
       reviewedAt: new Date().toISOString()
     });
 
-    // B. Jika disetujui orang tua, cairkan bonus XP dan Koin ke akun anak
+    // 3. Jika disetujui, cairkan bonus XP dan Koin ke akun ANAK
     if (status === "approved") {
-      const childRef = doc(db, "children", user.uid);
-      const coinReward = Math.ceil(xpReward / 10); // Formulasi hadiah: 10 XP bernilai 1 Koin KIDO
+      const childRef = doc(db, "children", childUserId); // ✅ Pakai ID Anak
+      const coinReward = Math.ceil(xpReward / 10);
       
       await updateDoc(childRef, {
         xp: increment(xpReward),
