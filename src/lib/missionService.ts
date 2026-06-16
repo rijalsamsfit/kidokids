@@ -3,16 +3,17 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, auth, storage } from "./firebase"; 
 
 const missionsCollection = collection(db, "missions");
-// ✅ Koleksi baru khusus untuk nyimpen template misi buatan ortu
 const favoriteMissionsCollection = collection(db, "favorite_missions");
 
 /**
  * 1. Fungsi untuk Orang Tua: Mengirim Misi Baru ke Cloud & Simpan Favorit
+ * ✅ DIUPDATE: Menerima childId agar misi masuk ke profil anak yang tepat
  */
-export const addMissionToDB = async (title: string, xpReward: number, time: string, isFavorite: boolean = false) => {
+export const addMissionToDB = async (title: string, xpReward: number, time: string, isFavorite: boolean = false, childId: string) => {
   try {
     const user = auth.currentUser;
     if (!user) throw new Error("Kamu belum login!");
+    if (!childId) throw new Error("ID Anak tidak valid!");
 
     // A. Simpan misi sebagai tugas harian anak
     const docRef = await addDoc(missionsCollection, {
@@ -21,21 +22,22 @@ export const addMissionToDB = async (title: string, xpReward: number, time: stri
       time,
       status: "pending",
       createdAt: new Date().toISOString(),
-      userId: user.uid 
+      userId: user.uid, // ID Orang Tua (Pembuat)
+      childId: childId  // ✅ ID Anak (Penerima Tugas)
     });
     
-    // B. ✅ LOGIKA BARU: Kalau ibu nge-centang "Simpan sebagai Template"
+    // B. LOGIKA BARU: Kalau ibu nge-centang "Simpan sebagai Template"
     if (isFavorite) {
       await addDoc(favoriteMissionsCollection, {
         title,
         xpReward,
         time,
-        userId: user.uid, // Diikat ke ID ortu/anak biar gak kecampur sama user lain
+        userId: user.uid, // Diikat ke ID ortu biar gak kecampur sama user lain
         createdAt: new Date().toISOString()
       });
     }
 
-    return { id: docRef.id, title, xpReward, time, status: "pending", userId: user.uid };
+    return { id: docRef.id, title, xpReward, time, status: "pending", userId: user.uid, childId };
   } catch (error) {
     console.error("Gagal mengirim misi ke Cloud: ", error);
     throw error;
@@ -58,7 +60,6 @@ export const getFavoriteMissionsFromDB = async () => {
       ...doc.data()
     }));
     
-    // Urutkan dari yang terbaru disimpan
     favorites.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     return favorites;
@@ -69,7 +70,7 @@ export const getFavoriteMissionsFromDB = async () => {
 };
 
 /**
- * 2. Fungsi Umum: Mengambil Hanya Misi Milik Sendiri
+ * 2. Fungsi Umum: Mengambil Hanya Misi Milik Sendiri (Orang Tua)
  */
 export const getMissionsFromDB = async () => {
   try {
@@ -117,10 +118,8 @@ export const completeMissionInDB = async (missionId: string) => {
  */
 export const submitMissionProofInDB = async (missionId: string, imageFile: File) => {
   try {
-    const user = auth.currentUser;
-    if (!user) throw new Error("Kamu belum login!");
-
-    const storageRef = ref(storage, `proofs/${user.uid}/${missionId}.jpg`);
+    // ❌ Dihapus cek auth.currentUser karena anak tidak pakai auth
+    const storageRef = ref(storage, `proofs/${missionId}-${Date.now()}.jpg`);
     await uploadBytes(storageRef, imageFile);
     
     const downloadUrl = await getDownloadURL(storageRef);
@@ -153,7 +152,8 @@ export const reviewMissionInDB = async (missionId: string, status: "approved" | 
     if (!missionSnap.exists()) throw new Error("Misi tidak ditemukan");
     
     const missionData = missionSnap.data();
-    const childUserId = missionData.userId; 
+    // ✅ Menggunakan childId untuk memberikan XP dan Koin kepada anak yang tepat
+    const childUserId = missionData.childId || missionData.userId; // Fallback ke userId jika data lama
 
     await updateDoc(missionRef, {
       status: status,

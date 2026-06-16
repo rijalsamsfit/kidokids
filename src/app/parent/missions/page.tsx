@@ -37,7 +37,8 @@ export default function ParentMissionsPage() {
 
   const handleAddMission = async (newMission: any) => {
     try {
-      await addMissionToDB(newMission.title, newMission.xp, newMission.time, newMission.isFavorite);
+      // ✅ Menambahkan newMission.childId ke fungsi addMissionToDB
+      await addMissionToDB(newMission.title, newMission.xp, newMission.time, newMission.isFavorite, newMission.childId);
       fetchMissions(); // Refresh daftar misi
       setIsFormOpen(false); // Tutup form
       alert("Misi berhasil dibuat dan dikirim ke anak!");

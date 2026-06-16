@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Target, Zap, Clock, X, Check, Sparkles, Star, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Target, Zap, Clock, X, Check, Sparkles, Star, Plus, Users, Loader2 } from "lucide-react";
+// ✅ Import fungsi narik data anak
+import { getChildrenProfiles } from "@/lib/childService";
 
 interface MissionFormProps {
   onClose: () => void;
@@ -12,8 +14,31 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
   const [title, setTitle] = useState("");
   const [xp, setXp] = useState(10);
   const [time, setTime] = useState("Pagi");
-  // ✅ STATE BARU: Untuk Checkbox Simpan Misi Favorit
   const [isFavorite, setIsFavorite] = useState(false);
+  
+  // ✅ STATE BARU: Untuk Manajemen Multi-Profile
+  const [childrenList, setChildrenList] = useState<any[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState<string>("");
+  const [isLoadingChildren, setIsLoadingChildren] = useState(true);
+
+  // ✅ Tarik daftar anak saat form pertama kali dibuka
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const profiles = await getChildrenProfiles();
+        setChildrenList(profiles);
+        // Kalau ada data anak, otomatis pilih anak urutan pertama
+        if (profiles.length > 0) {
+          setSelectedChildId(profiles[0].id);
+        }
+      } catch (error) {
+        console.error("Gagal menarik data anak di Form:", error);
+      } finally {
+        setIsLoadingChildren(false);
+      }
+    };
+    fetchChildren();
+  }, []);
 
   // ✅ TEMPLATE MISI SAKTI (AUTO-FILL)
   const missionTemplates = [
@@ -26,6 +51,10 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (!selectedChildId) {
+      alert("Pilih dulu misi ini mau ditugaskan ke siapa!");
+      return;
+    }
     
     onSubmit({
       id: Date.now(),
@@ -33,7 +62,8 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
       xp,
       time,
       status: "pending",
-      isFavorite // 👈 Lempar status ini ke parent
+      isFavorite,
+      childId: selectedChildId // 👈 SEKARANG MISI PUNYA TUANNYA!
     });
     
     // Reset form
@@ -60,6 +90,45 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* ✅ FITUR BARU: PILIH ANAK */}
+        <div className="mb-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+          <label className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Users className="w-4 h-4" /> Tugaskan Kepada:
+          </label>
+          
+          {isLoadingChildren ? (
+            <div className="flex items-center text-sm font-bold text-blue-500 animate-pulse">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Memuat daftar pahlawan...
+            </div>
+          ) : childrenList.length === 0 ? (
+            <p className="text-sm font-bold text-rose-500">
+              Belum ada profil anak. Bikin dulu di menu Pengaturan ya!
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {childrenList.map((child) => (
+                <button
+                  key={child.id}
+                  type="button"
+                  onClick={() => setSelectedChildId(child.id)}
+                  className={`py-2 px-4 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 flex items-center gap-2 ${
+                    selectedChildId === child.id 
+                    ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200" 
+                    : "bg-white border-blue-100 text-blue-600 hover:bg-blue-50"
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                    selectedChildId === child.id ? "bg-white text-blue-600" : "bg-blue-100 text-blue-600"
+                  }`}>
+                    {child.name.charAt(0).toUpperCase()}
+                  </div>
+                  {child.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 🔥 REKOMENDASI CEPAT */}
@@ -185,7 +254,8 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
 
           <button 
             type="submit"
-            className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 mt-4"
+            disabled={childrenList.length === 0}
+            className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white p-4 rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 mt-4"
           >
             <Check className="w-5 h-5" />
             <span>Simpan Misi</span>
