@@ -12,7 +12,6 @@ import { Trophy, Coins, Star, Zap, CheckCircle, Target, Timer, RefreshCw, Camera
 import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
 export default function ChildDashboard() {
-  // ✅ Pake cara standard: cukup ambil state-nya aja
   const { xp, level, coins } = useGameStore(); 
   const { isSleepMode, isTimeUp, formattedTime } = useScreenTime(30);
 
@@ -29,12 +28,11 @@ export default function ChildDashboard() {
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
-        // ✅ 1. Listener Real-time untuk Profil
+        // ✅ 1. Listener Real-time untuk Profil Anak (Mesin Poin Otomatis)
         unsubProfile = onSnapshot(doc(db, "children", user.uid), (doc) => {
           if (doc.exists()) {
             const data = doc.data();
             setCloudProfile(data);
-            // ✅ Fix: Pakai setState biar gak error export
             useGameStore.setState({ xp: data.xp, level: data.level, coins: data.coins });
           }
         });
@@ -67,10 +65,10 @@ export default function ChildDashboard() {
     try {
       const compressedFile = await compressImage(file);
       await submitMissionProofInDB(missionId, compressedFile);
-      alert("Bukti foto berhasil dikirim!");
+      alert("Bukti foto berhasil dikirim! Tunggu Ayah/Bunda memeriksa ya! 🌟");
     } catch (error) {
       console.error("Upload eror:", error);
-      alert("Gagal mengunggah gambar bukti.");
+      alert("Gagal mengunggah gambar bukti. Pastikan koneksi internet lancar dan coba lagi.");
     } finally {
       setUploadingId(null);
     }
@@ -87,11 +85,12 @@ export default function ChildDashboard() {
   const progressPercentage = Math.min(100, Math.max(0, (xpRequired > 0 ? (xpProgress / xpRequired) * 100 : 0)));
 
   return (
-    // ... (sisa kodenya sama persis dengan yang kemarin) ...
     <div className="min-h-screen bg-blue-50 pb-24 font-sans relative">
+      
       {isSleepMode && <LockScreen type="sleep" />}
       {!isSleepMode && isTimeUp && <LockScreen type="timeUp" />}
 
+      {/* Header Status Bar */}
       <div className="bg-white p-4 rounded-b-3xl shadow-sm flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center space-x-3">
           <div className="bg-blue-100 p-2 rounded-xl">
@@ -116,45 +115,129 @@ export default function ChildDashboard() {
       </div>
 
       <div className="p-6 space-y-6">
+        
+        {/* Visualisasi Avatar / Pahlawan */}
         <div className="flex flex-col items-center justify-center bg-gradient-to-b from-blue-400 to-blue-600 rounded-[2.5rem] p-8 shadow-xl shadow-blue-200 relative overflow-hidden border-4 border-white">
-          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-5 shadow-2xl border-4 border-blue-100">
+          <div className="absolute top-4 left-4 animate-pulse"><Star className="w-6 h-6 text-white/50" /></div>
+          <div className="absolute bottom-10 right-6 animate-pulse delay-150"><Star className="w-8 h-8 text-white/40" /></div>
+
+          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-5 shadow-2xl border-4 border-blue-100 relative transform transition-transform hover:scale-105">
             <div className="text-6xl drop-shadow-md">🦸‍♂️</div>
+            <div className="absolute -bottom-2 -right-2 bg-amber-400 text-white font-bold p-2.5 rounded-full border-4 border-white shadow-lg animate-bounce">
+              <Zap className="w-5 h-5 fill-white" />
+            </div>
           </div>
-          <h2 className="text-2xl font-extrabold text-white mb-3 tracking-wide capitalize">
+
+          <h2 className="text-2xl font-extrabold text-white mb-3 tracking-wide drop-shadow-sm capitalize">
             {cloudProfile?.name || "Pahlawan"} Hebat!
           </h2>
+
           <div className="w-full bg-blue-950/20 rounded-full h-5 mb-2 p-1 backdrop-blur-md border border-white/20 shadow-inner relative">
             <div
-              className="bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 h-full rounded-full transition-all duration-1000 ease-out"
+              className="bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 h-full rounded-full transition-all duration-1000 ease-out relative shadow-sm"
               style={{ width: `${progressPercentage}%` }}
-            ></div>
+            >
+              <div className="absolute right-1 top-1 bottom-1 w-2 bg-white/50 rounded-full animate-pulse"></div>
+            </div>
           </div>
           <p className="text-xs text-blue-50 font-bold tracking-wide">
             {xp} / {nextLevelXP} XP menuju Level {level + 1}
           </p>
         </div>
 
+        {/* Daftar Misi Hari Ini */}
         <div>
-          <h3 className="text-lg font-extrabold text-slate-800 mb-4 flex items-center">
-            <Target className="w-6 h-6 mr-2 text-rose-500" /> Misi Pahlawan Hari Ini
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-extrabold text-slate-800 flex items-center">
+              <Target className="w-6 h-6 mr-2 text-rose-500" />
+              Misi Pahlawan Hari Ini
+            </h3>
+          </div>
+          
           <div className="space-y-3">
-            {todayMissions.map((mission) => (
-              <div key={mission.id} className="bg-white p-4 rounded-3xl border-2 border-slate-100 flex items-center justify-between">
-                <p className="font-bold text-slate-700">{mission.title}</p>
-                {mission.status === 'pending_approval' ? (
-                  <span className="text-xs font-black bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full">Dicek Ortu</span>
-                ) : (
-                  <label className="w-10 h-10 rounded-full bg-blue-50 border-2 border-blue-200 flex items-center justify-center cursor-pointer">
-                    <Camera className="w-5 h-5 text-blue-500" />
-                    <input type="file" accept="image/*" capture="environment" onChange={(e) => handleFileChange(e, mission.id)} className="hidden" />
-                  </label>
-                )}
-              </div>
-            ))}
+            {todayMissions.length === 0 && !isLoading && (
+              <p className="text-center text-slate-400 text-sm py-4 bg-white rounded-3xl border-2 border-slate-100">Belum ada misi hari ini. Hore istirahat!</p>
+            )}
+
+            {todayMissions.map((mission) => {
+              // ✅ Logika Status Dinamis Lu Udah Balik 100%
+              const isApproved = mission.status === 'approved';
+              const isCompleted = mission.status === 'completed'; 
+              const isDone = isApproved || isCompleted;
+              const isPendingApproval = mission.status === 'pending_approval';
+              const isRejected = mission.status === 'rejected';
+
+              return (
+                <div key={mission.id} className={`bg-white p-4 rounded-3xl border-2 shadow-sm flex items-center justify-between transition-all duration-300 ${isDone ? 'border-emerald-200 opacity-70' : isRejected ? 'border-rose-200' : 'border-slate-100'}`}>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors ${
+                      isDone ? 'bg-emerald-50 border-emerald-100' : 
+                      isRejected ? 'bg-rose-50 border-rose-100' : 
+                      'bg-blue-50 border-blue-100'
+                    }`}>
+                      {isRejected ? (
+                        <AlertCircle className="w-7 h-7 text-rose-500" />
+                      ) : (
+                        <Zap className={`w-7 h-7 ${isDone ? 'text-emerald-400' : 'text-blue-500'}`} />
+                      )}
+                    </div>
+                    <div>
+                      <p className={`font-bold text-[15px] leading-tight transition-colors ${isDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                        {mission.title}
+                      </p>
+                      
+                      {isRejected ? (
+                        <p className="text-xs font-bold mt-1 text-rose-500">Misi ditolak, foto ulang!</p>
+                      ) : (
+                        <p className={`text-sm font-extrabold mt-1 ${isDone ? 'text-emerald-500' : 'text-amber-500'}`}>
+                          +{mission.xpReward || mission.xp} XP
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* ✅ Area Tombol Eksekusi / Kamera Lu Udah Balik 100% */}
+                  <div className="flex items-center">
+                    {isPendingApproval ? (
+                      <span className="text-xs font-black bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full animate-pulse">
+                        Dicek Ortu
+                      </span>
+                    ) : isDone ? (
+                      <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center border-2 border-emerald-500">
+                        <CheckCircle className="w-7 h-7" />
+                      </div>
+                    ) : (
+                      <label className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all shadow-sm cursor-pointer active:scale-90 relative ${
+                        isRejected 
+                        ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white hover:border-rose-500' 
+                        : 'bg-blue-50 border-blue-200 text-blue-500 hover:bg-blue-500 hover:text-white hover:border-blue-500'
+                      }`}>
+                        {uploadingId === mission.id ? (
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                        ) : (
+                          <Camera className="w-6 h-6" />
+                        )}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          capture="environment" 
+                          onChange={(e) => handleFileChange(e, mission.id)}
+                          disabled={uploadingId !== null}
+                          className="hidden" 
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                </div>
+              );
+            })}
           </div>
         </div>
+
       </div>
+
       <Navigation />
     </div>
   );
