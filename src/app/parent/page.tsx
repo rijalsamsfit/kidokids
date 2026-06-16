@@ -20,7 +20,7 @@ export default function ParentDashboard() {
   // ✅ STATE: Untuk Toko Kido
   const [isRewardFormOpen, setIsRewardFormOpen] = useState(false);
   const [rewardTitle, setRewardTitle] = useState("");
-  const [rewardCost, setRewardCost] = useState<number>(30);
+  const [rewardCost, setRewardCost] = useState<number | "">(30);
   const [rewards, setRewards] = useState<any[]>([]);
 
   // ✅ TEMPLATE HADIAH SAKTI (AUTO-FILL)
@@ -85,9 +85,12 @@ export default function ParentDashboard() {
 
   const handleAddReward = () => {
     if (!rewardTitle) return alert("Nama hadiah harus diisi!");
+    if (rewardCost === "" || rewardCost <= 0) return alert("Harga koin harus lebih dari 0!"); // ✅ Cegah input error
+    
     alert(`UI Berhasil! Hadiah "${rewardTitle}" seharga ${rewardCost} Koin siap dimasukkan ke Firebase di tahap selanjutnya.`);
     setIsRewardFormOpen(false);
     setRewardTitle("");
+    setRewardCost(30); // ✅ Reset balik ke 30 setelah simpan
   };
 
   if (isLoading && !childData) {
@@ -293,12 +296,12 @@ export default function ParentDashboard() {
                     <Coins className="w-6 h-6 text-amber-500" />
                   </div>
                   <input 
-                    type="number" 
-                    value={rewardCost}
-                    onChange={(e) => setRewardCost(Number(e.target.value))}
-                    min="1"
-                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-black text-slate-700 text-lg" 
-                  />
+                  type="number" 
+                  value={rewardCost}
+                  onChange={(e) => setRewardCost(e.target.value === "" ? "" : Number(e.target.value))} // ✅ Logika baru yang mulus
+                  min="1"
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-black text-slate-700 text-lg" 
+                />
                 </div>
               </div>
             </div>
