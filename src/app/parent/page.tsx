@@ -5,11 +5,13 @@ import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import { getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
 import { getChildrenProfiles } from "@/lib/childService";
-import { auth } from "@/lib/firebase";
-import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings } from "lucide-react";
+import { auth, db } from "@/lib/firebase"; // ✅ Import db ditambahkan
+import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore"; // ✅ Import Firestore ditambahkan
+import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings, Gift, Check } from "lucide-react"; // ✅ Icon Gift dan Check ditambahkan
 
 export default function ParentDashboard() {
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
+  const [pendingRewards, setPendingRewards] = useState<any[]>([]); // ✅ State baru untuk hadiah yang diklaim anak
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -28,14 +30,21 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // ✅ Hanya menarik data profil dan misi (Data reward sudah dihapus dari sini)
+      // ✅ Menarik data profil, misi, dan hadiah secara bersamaan
       const [profiles, missions] = await Promise.all([
         getChildrenProfiles(),
         getMissionsFromDB()
       ]);
       
+      // ✅ Fetch data klaim hadiah dari Toko Kido yang statusnya masih 'pending'
+      const rewardsRef = collection(db, "claimed_rewards");
+      const q = query(rewardsRef, where("status", "==", "pending"));
+      const querySnapshot = await getDocs(q);
+      const rewardsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
       setChildrenData(profiles);
       setPendingMissions(missions);
+      setPendingRewards(rewardsData); // ✅ Simpan ke state
     } catch (error) {
       console.error("Gagal menarik data dasbor:", error);
     } finally {
@@ -53,6 +62,22 @@ export default function ParentDashboard() {
       fetchDashboardData(); 
     } catch (error) {
       alert("Gagal memproses tindakan. Coba lagi.");
+    }
+  };
+
+  // ✅ FUNGSI BARU: Konfirmasi hadiah dunia nyata sudah diberikan
+  const handleGiveReward = async (rewardId: string, rewardTitle: string, childName: string) => {
+    const confirmAction = window.confirm(`Konfirmasi: Apakah hadiah "${rewardTitle}" sudah diberikan kepada ${childName} di dunia nyata?`);
+    if (!confirmAction) return;
+
+    try {
+      const rewardRef = doc(db, "claimed_rewards", rewardId);
+      await updateDoc(rewardRef, { status: "completed" });
+      alert("✅ Mantap! Hadiah berhasil ditandai sudah diberikan.");
+      fetchDashboardData(); // Refresh UI untuk menghilangkan daftar yang sudah selesai
+    } catch (error) {
+      alert("Gagal memperbarui status hadiah. Coba lagi.");
+      console.error(error);
     }
   };
 
@@ -110,10 +135,55 @@ export default function ParentDashboard() {
       </div>
 
       <div className="p-6 space-y-8">
-        
+
+        {/* ✅ SEKSI BARU: Klaim Hadiah Anak */}
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-slate-800">Menunggu Verifikasi</h2>
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Gift className="w-5 h-5 text-purple-500" /> Klaim Hadiah Anak
+            </h2>
+            <span className="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full border border-purple-200">
+              {pendingRewards.length} Menunggu
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {pendingRewards.length === 0 && !isLoading && (
+              <p className="text-center text-slate-400 text-sm py-4 bg-white rounded-2xl border border-slate-100">
+                Belum ada anak yang menukar koin untuk hadiah.
+              </p>
+            )}
+
+            {pendingRewards.map((reward) => (
+              <div key={reward.id} className="bg-white rounded-2xl p-4 border border-purple-100 shadow-sm flex flex-col space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-purple-50 rounded-xl text-purple-600">
+                    <Gift className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-800 text-[15px]">{reward.rewardTitle}</p>
+                    <p className="text-xs text-slate-500 font-semibold mt-0.5 capitalize">
+                      Diminta oleh: <span className="text-purple-600 font-bold">{reward.childName}</span> • Seharga {reward.cost} Koin
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleGiveReward(reward.id, reward.rewardTitle, reward.childName)}
+                  className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center space-x-1.5 shadow-sm active:scale-95 transition-all"
+                >
+                  <Check className="w-4 h-4" /><span>Tandai Sudah Diberikan</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <hr className="border-slate-200" />
+        
+        {/* SEKSI: Menunggu Verifikasi (Misi Fisik) */}
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-slate-800">Menunggu Verifikasi Misi</h2>
             <div className="flex items-center space-x-3">
               <button onClick={fetchDashboardData} className="text-slate-400 hover:text-emerald-600 transition-colors">
                 <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -126,7 +196,9 @@ export default function ParentDashboard() {
           
           <div className="space-y-3">
             {pendingMissions.length === 0 && !isLoading && (
-              <p className="text-center text-slate-400 text-sm py-4">Semua misi sudah diverifikasi atau belum ada misi baru.</p>
+              <p className="text-center text-slate-400 text-sm py-4 bg-white rounded-2xl border border-slate-100">
+                Semua misi sudah diverifikasi atau belum ada misi baru.
+              </p>
             )}
             
             {pendingMissions.map((mission) => (

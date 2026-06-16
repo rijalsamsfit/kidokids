@@ -6,7 +6,7 @@ import Navigation from "@/components/Navigation";
 import { useGameStore } from "@/store/useGameStore";
 import { getRewardsFromDB } from "@/lib/rewardService";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, increment, getDoc } from "firebase/firestore";
+import { doc, updateDoc, increment, getDoc, addDoc, collection } from "firebase/firestore";
 import { Store, Coins, Gift, Sparkles, Lock, Loader2 } from "lucide-react";
 
 export default function ChildShop() {
@@ -68,12 +68,24 @@ export default function ChildShop() {
         coins: increment(-reward.cost)
       });
 
-      // 2. Update koin di Zustand (otomatis layar langsung update)
+      // 2. Rekam riwayat klaim hadiah untuk dilaporkan ke Orang Tua
+      await addDoc(collection(db, "claimed_rewards"), {
+        childId: activeChildId,
+        childName: activeChildName || "Pahlawan",
+        rewardId: reward.id,
+        rewardTitle: reward.title,
+        cost: reward.cost,
+        status: "pending", // "pending" berarti hadiah dunia nyata belum diserahkan oleh Ortu
+        claimedAt: new Date().toISOString()
+      });
+
+      // 3. Update koin di Zustand (otomatis layar langsung update)
       addCoins(-reward.cost);
 
       alert(`🎉 Hore! Kamu berhasil menukarkan hadiah: ${reward.title}. Langsung kasih tau Ayah/Ibu ya buat minta hadiahnya!`);
     } catch (error) {
       alert("Gagal menukar koin. Pastikan internet kamu lancar ya!");
+      console.error("Gagal klaim hadiah:", error);
     } finally {
       setIsProcessing(false);
     }

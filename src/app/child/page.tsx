@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 // ✅ Import useRouter untuk menendang user yang belum masukin PIN
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
@@ -18,13 +18,18 @@ export default function ChildDashboard() {
   const router = useRouter();
   // ✅ Tarik activeChildId dan Name dari Zustand
   const { activeChildId, activeChildName, xp, level, coins } = useGameStore(); 
-  const { isSleepMode, isTimeUp, formattedTime } = useScreenTime(30);
+  
+  // ✅ Ambil grantBonusTime dari hook
+  const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
 
   const [mounted, setMounted] = useState(false);
   const [todayMissions, setTodayMissions] = useState<any[]>([]);
   const [cloudProfile, setCloudProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  // ✅ Bikin brankas referensi untuk ngecek perubahan status misi
+  const prevMissionsRef = useRef<any[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -51,7 +56,25 @@ export default function ChildDashboard() {
     // ✅ 2. Listener Real-time untuk Misi Milik Anak Ini Saja
     const q = query(collection(db, "missions"), where("childId", "==", activeChildId));
     unsubMissions = onSnapshot(q, (snapshot) => {
-      const missions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const missions: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // 🔥 DETEKTOR APPROVAL: Cek apakah ada misi yang baru saja disetujui ortu
+      if (prevMissionsRef.current.length > 0) {
+        missions.forEach(mission => {
+          const prevMission = prevMissionsRef.current.find(m => m.id === mission.id);
+          
+          // Kalau misi sebelumnya belum approved, tapi sekarang jadi approved
+          if (prevMission && prevMission.status !== 'approved' && mission.status === 'approved') {
+            // CAIRKAN BONUS SECARA INSTAN!
+            grantBonusTime(10);
+            alert(`Hore! Bukti misimu "${mission.title}" disetujui! Waktu mainmu ditambah 10 Menit! 🎉`);
+          }
+        });
+      }
+      
+      // Simpan state misi terbaru ke dalam ref untuk perbandingan selanjutnya
+      prevMissionsRef.current = missions;
+
       missions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTodayMissions(missions);
       setIsLoading(false);
@@ -61,7 +84,7 @@ export default function ChildDashboard() {
       if (unsubProfile) unsubProfile();
       if (unsubMissions) unsubMissions();
     };
-  }, [activeChildId, router]); // ✅ Bergantung pada perubahan activeChildId
+  }, [activeChildId, router, grantBonusTime]); // ✅ Bergantung pada perubahan activeChildId
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, missionId: string) => {
     const file = e.target.files?.[0];
