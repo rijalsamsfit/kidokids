@@ -1,37 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// ✅ Import Link untuk routing
 import Link from "next/link";
 import Navigation from "@/components/Navigation";
-import MissionForm from "@/components/MissionForm";
-import { addMissionToDB, getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
+import { getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
 import { getChildrenProfiles } from "@/lib/childService";
-import { addRewardToDB, getRewardsFromDB, deleteRewardFromDB } from "@/lib/rewardService";
 import { auth } from "@/lib/firebase";
-// ✅ Tambahkan icon Settings di import lucide-react
-import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Gift, Store, Coins, Sparkles, Trash2, Users, Settings } from "lucide-react";
+import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings } from "lucide-react";
 
 export default function ParentDashboard() {
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
-  // STATE: Untuk Toko Kido
-  const [isRewardFormOpen, setIsRewardFormOpen] = useState(false);
-  const [rewardTitle, setRewardTitle] = useState("");
-  const [rewardCost, setRewardCost] = useState<number | "">(30);
-  const [rewards, setRewards] = useState<any[]>([]);
-
-  const rewardTemplates = [
-    { title: "Main HP 1 Jam", cost: 50 },
-    { title: "Beli Es Krim", cost: 30 },
-    { title: "Pilih Menu Makan Malam", cost: 60 },
-    { title: "Main ke Taman", cost: 40 }
-  ];
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -47,29 +28,18 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [profiles, missions, fetchedRewards] = await Promise.all([
+      // ✅ Hanya menarik data profil dan misi (Data reward sudah dihapus dari sini)
+      const [profiles, missions] = await Promise.all([
         getChildrenProfiles(),
-        getMissionsFromDB(),
-        getRewardsFromDB()
+        getMissionsFromDB()
       ]);
       
       setChildrenData(profiles);
       setPendingMissions(missions);
-      setRewards(fetchedRewards); 
     } catch (error) {
       console.error("Gagal menarik data dasbor:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleAddMission = async (newMission: any) => {
-    try {
-      await addMissionToDB(newMission.title, newMission.xp, newMission.time, newMission.isFavorite);
-      fetchDashboardData(); 
-      setIsFormOpen(false); 
-    } catch (error) {
-      alert("Gagal menyimpan misi, pastikan koneksi internetmu lancar!");
     }
   };
 
@@ -86,34 +56,6 @@ export default function ParentDashboard() {
     }
   };
 
-  const handleAddReward = async () => {
-    if (!rewardTitle) return alert("Nama hadiah harus diisi!");
-    if (rewardCost === "" || rewardCost <= 0) return alert("Harga koin harus lebih dari 0!");
-    
-    try {
-      await addRewardToDB(rewardTitle, Number(rewardCost));
-      alert(`🎉 Hadiah "${rewardTitle}" berhasil ditambahkan ke Etalase!`);
-      setIsRewardFormOpen(false);
-      setRewardTitle("");
-      setRewardCost(30);
-      fetchDashboardData(); 
-    } catch (error) {
-      alert("Gagal menyimpan hadiah. Pastikan koneksi aman.");
-    }
-  };
-
-  const handleDeleteReward = async (id: string) => {
-    const confirmDelete = window.confirm("Yakin mau hapus hadiah ini dari toko?");
-    if (!confirmDelete) return;
-
-    try {
-      await deleteRewardFromDB(id);
-      fetchDashboardData(); 
-    } catch (error) {
-      alert("Gagal menghapus hadiah.");
-    }
-  };
-
   if (isLoading && childrenData.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-emerald-600 animate-pulse">
@@ -126,7 +68,6 @@ export default function ParentDashboard() {
     <div className="min-h-screen bg-slate-50 pb-24 relative">
       
       <div className="bg-emerald-600 p-6 rounded-b-[2rem] shadow-md text-white">
-        {/* ✅ Ikon Roda Gigi ditaruh secara elegan di pojok kanan atas Header */}
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-extrabold mb-1 tracking-tight">Dasbor Orang Tua</h1>
@@ -162,7 +103,7 @@ export default function ParentDashboard() {
             <div className="bg-emerald-500/50 p-4 rounded-2xl flex flex-col items-center justify-center border border-emerald-400/50 border-dashed text-center">
               <Users className="w-8 h-8 text-emerald-200 mb-2" />
               <p className="text-emerald-50 text-sm font-bold">Belum ada profil anak.</p>
-              <p className="text-emerald-200 text-xs mt-1">Nanti kita tambahkan fitur buat anak di sini.</p>
+              <p className="text-emerald-200 text-xs mt-1">Tambahkan dari menu Pengaturan.</p>
             </div>
           )}
         </div>
@@ -185,7 +126,7 @@ export default function ParentDashboard() {
           
           <div className="space-y-3">
             {pendingMissions.length === 0 && !isLoading && (
-              <p className="text-center text-slate-400 text-sm py-4">Belum ada misi. Yuk buat misi baru!</p>
+              <p className="text-center text-slate-400 text-sm py-4">Semua misi sudah diverifikasi atau belum ada misi baru.</p>
             )}
             
             {pendingMissions.map((mission) => (
@@ -235,159 +176,9 @@ export default function ParentDashboard() {
           </div>
         </div>
 
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
-              <Gift className="w-5 h-5 text-purple-500" />
-              <span>Etalase Hadiah</span>
-            </h2>
-            {rewards.length > 0 && (
-              <button onClick={() => setIsRewardFormOpen(true)} className="text-purple-600 hover:bg-purple-100 bg-purple-50 p-1.5 rounded-lg transition-colors">
-                <Plus className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-
-          <div className={`bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col relative overflow-hidden ${rewards.length === 0 ? 'items-center justify-center text-center' : ''}`}>
-            {rewards.length === 0 ? (
-              <>
-                <div className="absolute -right-6 -top-6 text-purple-50 opacity-50"><Store className="w-32 h-32" /></div>
-                <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center border border-purple-100 relative z-10">
-                  <Store className="w-8 h-8 text-purple-500" />
-                </div>
-                <div className="relative z-10 mt-3">
-                  <p className="font-bold text-slate-700 text-[15px]">Toko Masih Kosong</p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-[200px] mx-auto leading-relaxed">
-                    Tambahkan hadiah seperti "Main PS 1 Jam" agar anak makin semangat kumpulin koin!
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setIsRewardFormOpen(true)} 
-                  className="mt-4 bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2.5 rounded-xl text-sm font-extrabold flex items-center space-x-2 transition-colors relative z-10 shadow-sm"
-                >
-                  <Plus className="w-4 h-4 border-2 border-purple-700 rounded-full p-0.5" /> 
-                  <span>Buat Daftar Hadiah</span>
-                </button>
-              </>
-            ) : (
-              <div className="w-full space-y-3 z-10 relative">
-                {rewards.map(reward => (
-                  <div key={reward.id} className="flex items-center justify-between bg-purple-50/50 p-4 rounded-2xl border border-purple-100 hover:border-purple-200 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-purple-100 rounded-xl">
-                        <Gift className="w-5 h-5 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-700">{reward.title}</p>
-                        <p className="text-sm font-extrabold text-amber-500 flex items-center gap-1 mt-0.5">
-                          <Coins className="w-4 h-4" /> {reward.cost} Koin
-                        </p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => handleDeleteReward(reward.id)} 
-                      className="p-2 text-rose-400 hover:bg-rose-100 rounded-xl transition-colors"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <button 
-          onClick={() => setIsFormOpen(true)}
-          className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white p-4 rounded-2xl font-bold shadow-xl transition-all active:scale-95"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Buat Misi Baru</span>
-        </button>
       </div>
 
       <Navigation />
-
-      {isFormOpen && (
-        <MissionForm onClose={() => setIsFormOpen(false)} onSubmit={handleAddMission} />
-      )}
-
-      {isRewardFormOpen && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-in fade-in duration-200">
-          <div className="bg-white w-full sm:w-[400px] max-h-[90vh] overflow-y-auto rounded-t-[2rem] sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-                <Gift className="w-6 h-6 text-purple-500" /> Jual Hadiah Baru
-              </h3>
-              <button onClick={() => setIsRewardFormOpen(false)} className="p-2 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-500" /> Pilih Cepat (Sekali Klik)
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {rewardTemplates.map((template, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setRewardTitle(template.title);
-                      setRewardCost(template.cost);
-                    }}
-                    className="bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-3 py-2 rounded-xl text-[13px] font-bold flex items-center transition-colors active:scale-95"
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> {template.title} ({template.cost})
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-px bg-slate-200 flex-1"></div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ATAU KETIK CUSTOM</span>
-              <div className="h-px bg-slate-200 flex-1"></div>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="text-sm font-bold text-slate-600 ml-1">Nama Hadiah</label>
-                <input 
-                  type="text" 
-                  value={rewardTitle}
-                  onChange={(e) => setRewardTitle(e.target.value)}
-                  placeholder="Cth: Bebas Main iPad 1 Jam" 
-                  className="w-full mt-1.5 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-purple-400 focus:bg-white outline-none transition-all font-medium text-slate-700" 
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-bold text-slate-600 ml-1">Harga (Koin KIDO)</label>
-                <div className="flex items-center space-x-3 mt-1.5">
-                  <div className="p-4 bg-amber-100 rounded-2xl border-2 border-amber-200">
-                    <Coins className="w-6 h-6 text-amber-500" />
-                  </div>
-                  <input 
-                    type="number" 
-                    value={rewardCost}
-                    onChange={(e) => setRewardCost(e.target.value === "" ? "" : Number(e.target.value))}
-                    min="1"
-                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-amber-400 focus:bg-white outline-none transition-all font-black text-slate-700 text-lg" 
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleAddReward} 
-              className="w-full mt-8 py-4 font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-2xl shadow-lg shadow-purple-200 transition-all active:scale-95"
-            >
-              Simpan ke Etalase Toko
-            </button>
-          </div>
-        </div>
-      )}
 
       {selectedImage && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
