@@ -30,7 +30,7 @@ export default function SettingsPage() {
   const [newChildName, setNewChildName] = useState("");
   const [newChildPin, setNewChildPin] = useState("");
   
-  // State untuk Modal Settings (PIN, Waktu Main, Jam Tidur)
+  // State untuk Modal Settings
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeChild, setActiveChild] = useState<any>(null);
   const [settingType, setSettingType] = useState<"screenTime" | "sleepTime" | "pin" | null>(null);
@@ -68,20 +68,15 @@ export default function SettingsPage() {
     }));
   };
 
-  // ✅ FUNGSI BUKA MODAL SETTINGS
   const openSettings = (child: any, type: "screenTime" | "sleepTime" | "pin") => {
     setActiveChild(child);
     setSettingType(type);
-    
-    // Set default value ke input
     if (type === "screenTime") setInputValue(child.screenTimeLimit?.toString() || "30");
     if (type === "sleepTime") setInputValue(child.sleepTime || "21:00");
     if (type === "pin") setInputValue("");
-    
     setIsSettingsOpen(true);
   };
 
-  // ✅ FUNGSI SIMPAN SETTINGS
   const handleSaveSettings = async () => {
     if (!activeChild) return;
     setIsSubmitting(true);
@@ -93,7 +88,7 @@ export default function SettingsPage() {
       } else if (settingType === "sleepTime") {
         await updateChildSettings(activeChild.id, { sleepTime: inputValue });
       }
-      alert("Berhasil diperbarui!");
+      alert("Pengaturan berhasil diperbarui!");
       setIsSettingsOpen(false);
       fetchChildren();
     } catch (error) {
@@ -125,7 +120,7 @@ export default function SettingsPage() {
   };
 
   const handleLogout = async () => {
-    if (confirm("Yakin ingin keluar?")) {
+    if (confirm("Yakin ingin keluar dari akun Orang Tua?")) {
       await signOut(auth);
       router.push("/login");
     }
@@ -142,7 +137,6 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-24 font-sans">
       
-      {/* HEADER */}
       <div className="bg-white px-6 py-4 flex items-center space-x-4 sticky top-0 z-10 shadow-sm border-b border-slate-200">
         <Link href="/parent" className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 transition-colors active:scale-95">
           <ArrowLeft className="w-5 h-5" />
@@ -152,7 +146,6 @@ export default function SettingsPage() {
 
       <div className="p-6 space-y-8">
         
-        {/* SEKSI 1: MANAJEMEN PASUKAN */}
         <section>
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 flex items-center gap-2">
             <Users className="w-4 h-4" /> Pasukan Pahlawan
@@ -180,11 +173,11 @@ export default function SettingsPage() {
                       </button>
                     </div>
 
-                    {/* ✅ TOMBOL AKSI PENGATURAN */}
+                    {/* ✅ KONTRAST TINGGI: Tombol Aksi Pengaturan */}
                     <div className="grid grid-cols-3 gap-2">
-                      <button onClick={() => openSettings(child, "screenTime")} className="text-[10px] font-bold bg-amber-50 text-amber-700 py-2 rounded-lg border border-amber-100">Waktu Main</button>
-                      <button onClick={() => openSettings(child, "sleepTime")} className="text-[10px] font-bold bg-indigo-50 text-indigo-700 py-2 rounded-lg border border-indigo-100">Jam Tidur</button>
-                      <button onClick={() => openSettings(child, "pin")} className="text-[10px] font-bold bg-emerald-50 text-emerald-700 py-2 rounded-lg border border-emerald-100">Ubah PIN</button>
+                      <button onClick={() => openSettings(child, "screenTime")} className="text-[10px] font-extrabold bg-amber-100 text-amber-950 py-2 rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors">Waktu Main</button>
+                      <button onClick={() => openSettings(child, "sleepTime")} className="text-[10px] font-extrabold bg-indigo-100 text-indigo-950 py-2 rounded-lg border border-indigo-200 hover:bg-indigo-200 transition-colors">Jam Tidur</button>
+                      <button onClick={() => openSettings(child, "pin")} className="text-[10px] font-extrabold bg-emerald-100 text-emerald-950 py-2 rounded-lg border border-emerald-200 hover:bg-emerald-200 transition-colors">Ubah PIN</button>
                     </div>
                   </div>
                 ))}
@@ -196,18 +189,23 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* SEKSI 3: AKUN */}
         <section>
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4" /> Akun & Keamanan
           </h2>
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
-            <div className="w-full p-4 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center space-x-3 text-slate-500"><ShieldCheck className="w-5 h-5" /><span className="font-bold text-sm">Akun Google</span></div>
-              <span className="text-xs font-semibold text-slate-500">{userEmail}</span>
+            <div className="w-full p-4 flex items-center justify-between bg-slate-50/50 cursor-default">
+              <div className="flex items-center space-x-3 text-slate-500">
+                <ShieldCheck className="w-5 h-5" />
+                <span className="font-bold text-sm">Akun Google</span>
+              </div>
+              <span className="text-xs font-semibold text-slate-400">{userEmail}</span>
             </div>
             <Link href="/parent/billing" className="w-full p-4 flex items-center justify-between hover:bg-slate-50">
-              <div className="flex items-center space-x-3 text-slate-700"><CreditCard className="w-5 h-5 text-blue-500" /><span className="font-bold">Langganan</span></div>
+              <div className="flex items-center space-x-3 text-slate-700">
+                <CreditCard className="w-5 h-5 text-blue-500" />
+                <span className="font-bold">Langganan</span>
+              </div>
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </Link>
           </div>
@@ -218,11 +216,13 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* ✅ MODAL SETTINGS (DYNAMIC) */}
+      {/* MODAL SETTINGS */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl">
-            <h3 className="font-black text-lg mb-4 capitalize">Edit {settingType === "screenTime" ? "Batas Waktu (Menit)" : settingType === "sleepTime" ? "Jam Tidur" : "PIN Baru"}</h3>
+          <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="font-black text-lg mb-4 capitalize">
+              Edit {settingType === "screenTime" ? "Batas Waktu (Menit)" : settingType === "sleepTime" ? "Jam Tidur" : "PIN Baru"}
+            </h3>
             <input 
               type={settingType === "pin" ? "text" : settingType === "screenTime" ? "number" : "time"}
               value={inputValue}
@@ -250,7 +250,7 @@ export default function SettingsPage() {
               <form onSubmit={handleAddChild} className="space-y-4">
                 <input type="text" value={newChildName} onChange={(e) => setNewChildName(e.target.value)} placeholder="Nama Anak" className="w-full p-4 bg-slate-50 rounded-2xl" required />
                 <input type="text" pattern="[0-9]*" maxLength={4} value={newChildPin} onChange={(e) => setNewChildPin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="PIN (4 Digit)" className="w-full p-4 bg-slate-50 rounded-2xl" required />
-                <button type="submit" className="w-full p-4 bg-blue-600 text-white rounded-2xl font-bold">Buat Profil</button>
+                <button type="submit" disabled={isSubmitting} className="w-full p-4 bg-blue-600 text-white rounded-2xl font-bold">{isSubmitting ? "..." : "Buat Profil"}</button>
               </form>
             </div>
         </div>
