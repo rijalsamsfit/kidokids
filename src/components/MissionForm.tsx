@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Target, Zap, Clock, X, Check } from "lucide-react";
+import { Target, Zap, Clock, X, Check, Sparkles, Star, Plus } from "lucide-react";
 
 interface MissionFormProps {
   onClose: () => void;
-  // Sementara kita pakai 'any' untuk data submission sebelum integrasi penuh ke Zustand/Firebase
   onSubmit: (mission: any) => void; 
 }
 
@@ -13,6 +12,16 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
   const [title, setTitle] = useState("");
   const [xp, setXp] = useState(10);
   const [time, setTime] = useState("Pagi");
+  // ✅ STATE BARU: Untuk Checkbox Simpan Misi Favorit
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  // ✅ TEMPLATE MISI SAKTI (AUTO-FILL)
+  const missionTemplates = [
+    { title: "Beresin Kasur", xp: 15, time: "Pagi" },
+    { title: "Mandi Sendiri", xp: 10, time: "Pagi" },
+    { title: "Kerjain PR", xp: 20, time: "Siang" },
+    { title: "Sikat Gigi", xp: 10, time: "Malam" }
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,24 +32,23 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
       title,
       xp,
       time,
-      status: "pending"
+      status: "pending",
+      isFavorite // 👈 Lempar status ini ke parent
     });
     
-    // Reset form setelah disubmit
+    // Reset form
     setTitle("");
     setXp(10);
     setTime("Pagi");
+    setIsFavorite(false);
   };
 
   return (
-    // Overlay background gelap, z-[60] supaya di atas bottom navigation
-    // items-end untuk mobile (muncul dari bawah), sm:items-center untuk tablet (muncul di tengah)
     <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
       
-      {/* Card Form */}
-      <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-10 duration-300">
+      {/* Card Form: Dibuat max-h biar bisa di-scroll kalau layar HP kecil */}
+      <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-10 duration-300">
         
-        {/* Header Form */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Buat Misi Baru</h3>
@@ -54,10 +62,38 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
           </button>
         </div>
 
-        {/* Form Inputs */}
+        {/* 🔥 REKOMENDASI CEPAT */}
+        <div className="mb-6">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 mb-2 flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-amber-500" /> Pilih Cepat (Sekali Klik)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {missionTemplates.map((template, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setTitle(template.title);
+                  setXp(template.xp);
+                  setTime(template.time);
+                }}
+                className="bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-3 py-2 rounded-xl text-[13px] font-bold flex items-center transition-colors active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> {template.title}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pembatas Visual */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-px bg-slate-200 flex-1"></div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ATAU KETIK CUSTOM</span>
+          <div className="h-px bg-slate-200 flex-1"></div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-5">
           
-          {/* Input Judul Misi - DIPERBAIKI KONTRASNYA */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-bold text-slate-700">
               <Target className="w-4 h-4 text-blue-500" />
@@ -68,13 +104,11 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Cth: Rapikan mainan setelah main" 
-              // Tambahan text-slate-900, font-bold, border-2, dan placeholder styling
               className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-bold placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               required
             />
           </div>
 
-          {/* Input Waktu */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-bold text-slate-700">
               <Clock className="w-4 h-4 text-amber-500" />
@@ -98,7 +132,6 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
             </div>
           </div>
 
-          {/* Input XP Reward */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-bold text-slate-700">
               <Zap className="w-4 h-4 text-emerald-500" />
@@ -126,7 +159,30 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
             </div>
           </div>
 
-          {/* Tombol Simpan */}
+          {/* ✅ FITUR SIMPAN KE DAFTAR FAVORIT */}
+          <div className="pt-2">
+            <label className="flex items-start space-x-3 cursor-pointer group">
+              <div className="relative flex items-center justify-center w-6 h-6 mt-0.5">
+                <input 
+                  type="checkbox" 
+                  checked={isFavorite}
+                  onChange={(e) => setIsFavorite(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="w-5 h-5 bg-slate-100 border-2 border-slate-300 rounded-md peer-checked:bg-amber-400 peer-checked:border-amber-400 transition-all"></div>
+                <Check className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={4} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-slate-700 group-hover:text-amber-600 transition-colors flex items-center gap-1.5">
+                  Simpan sebagai Template <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                </span>
+                <span className="text-[11px] text-slate-500 leading-tight mt-0.5">
+                  Centang agar misi ini tersimpan dan gampang dipanggil lagi besok tanpa perlu ngetik ulang.
+                </span>
+              </div>
+            </label>
+          </div>
+
           <button 
             type="submit"
             className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 mt-4"
