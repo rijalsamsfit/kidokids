@@ -16,8 +16,8 @@ import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
 export default function ChildDashboard() {
   const router = useRouter();
-  // ✅ Tarik activeChildId dan Name dari Zustand
-  const { activeChildId, activeChildName, xp, level, coins } = useGameStore(); 
+  // ✅ Tarik activeChildId, Name, dan unlockedBadges dari Zustand
+  const { activeChildId, activeChildName, xp, level, coins, unlockedBadges } = useGameStore(); 
   
   // ✅ Ambil grantBonusTime dari hook
   const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
@@ -27,9 +27,11 @@ export default function ChildDashboard() {
   const [cloudProfile, setCloudProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [showBadgeAlert, setShowBadgeAlert] = useState(false); // ✅ State untuk Pop-up Selebrasi Badge
 
-  // ✅ Bikin brankas referensi untuk ngecek perubahan status misi
+  // ✅ Bikin brankas referensi untuk ngecek perubahan status misi & badge
   const prevMissionsRef = useRef<any[]>([]);
+  const prevBadgesRef = useRef<string[] | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -48,8 +50,25 @@ export default function ChildDashboard() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setCloudProfile(data);
-        // Sinkronisasi data cloud ke Zustand biar UI langsung update
-        useGameStore.setState({ xp: data.xp, level: data.level, coins: data.coins });
+
+        const currentBadges = data.unlockedBadges || [];
+
+        // 🔥 DETEKTOR BADGE: Cek apakah ada trofi baru yang terbuka
+        if (prevBadgesRef.current !== null) {
+          if (currentBadges.length > prevBadgesRef.current.length) {
+            setShowBadgeAlert(true); // Munculkan pop-up selebrasi
+          }
+        }
+        prevBadgesRef.current = currentBadges;
+
+        // Sinkronisasi data cloud ke Zustand biar UI dan Laci Trofi langsung update
+        useGameStore.setState({ 
+          xp: data.xp, 
+          level: data.level, 
+          coins: data.coins,
+          missionsCompleted: data.missionsCompleted || 0,
+          unlockedBadges: currentBadges
+        });
       }
     });
 
@@ -84,7 +103,7 @@ export default function ChildDashboard() {
       if (unsubProfile) unsubProfile();
       if (unsubMissions) unsubMissions();
     };
-  }, [activeChildId, router, grantBonusTime]); // ✅ Bergantung pada perubahan activeChildId
+  }, [activeChildId, router, grantBonusTime]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, missionId: string) => {
     const file = e.target.files?.[0];
@@ -267,6 +286,32 @@ export default function ChildDashboard() {
       </div>
 
       <Navigation />
+
+      {/* ✅ POP-UP SELEBRASI BADGE BARU */}
+      {showBadgeAlert && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
+          <div className="bg-gradient-to-b from-yellow-300 to-amber-500 p-1 rounded-3xl animate-bounce shadow-[0_0_40px_rgba(250,204,21,0.6)]">
+            <div className="bg-white p-8 rounded-3xl flex flex-col items-center text-center max-w-xs relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-100/50 to-transparent"></div>
+              
+              <div className="text-7xl mb-4 relative z-10 drop-shadow-xl">🏆</div>
+              <h2 className="text-2xl font-black text-slate-800 mb-2 relative z-10">PENCAPAIAN BARU!</h2>
+              <p className="text-slate-600 font-bold mb-6 relative z-10">Luar biasa! Kamu baru saja membuka Badge baru di Lemari Trofimu!</p>
+              
+              <button
+                onClick={() => {
+                  setShowBadgeAlert(false);
+                  router.push("/child/badges"); // Opsional: Bawa anak langsung ke halaman Lemari Trofi
+                }}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3.5 rounded-xl active:scale-95 transition-transform shadow-lg relative z-10"
+              >
+                Cek Lemari Trofi!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

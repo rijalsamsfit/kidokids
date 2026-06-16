@@ -162,11 +162,41 @@ export const reviewMissionInDB = async (missionId: string, status: "approved" | 
 
     if (status === "approved") {
       const childRef = doc(db, "children", childUserId); 
+      const childSnap = await getDoc(childRef); // ✅ Tarik data anak saat ini untuk cek kelayakan Badge
+
+      let currentMissionsCompleted = 0;
+      let currentBadges: string[] = [];
+
+      if (childSnap.exists()) {
+        const childData = childSnap.data();
+        currentMissionsCompleted = childData.missionsCompleted || 0;
+        currentBadges = childData.unlockedBadges || [];
+      }
+
+      const newMissionsCompleted = currentMissionsCompleted + 1;
+      const newBadges = [...currentBadges];
+
+      // 🏆 MESIN BADGE: Logika otomatis membuka trofi
+      if (newMissionsCompleted >= 1 && !newBadges.includes("badge_pemula")) {
+        newBadges.push("badge_pemula");
+      }
+      if (newMissionsCompleted >= 5 && !newBadges.includes("badge_rajin")) {
+        newBadges.push("badge_rajin");
+      }
+      if (newMissionsCompleted >= 10 && !newBadges.includes("badge_sapu_emas")) {
+        newBadges.push("badge_sapu_emas");
+      }
+      if (newMissionsCompleted >= 30 && !newBadges.includes("badge_pahlawan_super")) {
+        newBadges.push("badge_pahlawan_super");
+      }
+
       const coinReward = Math.ceil(xpReward / 10);
       
       await updateDoc(childRef, {
         xp: increment(xpReward),
-        coins: increment(coinReward)
+        coins: increment(coinReward),
+        missionsCompleted: increment(1), // ✅ Catat tambahan 1 misi selesai
+        unlockedBadges: newBadges        // ✅ Update lemari trofi anak dengan array terbaru
       });
     }
 
