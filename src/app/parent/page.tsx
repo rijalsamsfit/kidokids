@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+// ✅ Import Link untuk routing
+import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import MissionForm from "@/components/MissionForm";
 import { addMissionToDB, getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
-// ✅ Menggunakan fungsi baru dari sistem Multi-Profile
 import { getChildrenProfiles } from "@/lib/childService";
 import { addRewardToDB, getRewardsFromDB, deleteRewardFromDB } from "@/lib/rewardService";
 import { auth } from "@/lib/firebase";
-import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Gift, Store, Coins, Sparkles, Trash2, Users } from "lucide-react";
+// ✅ Tambahkan icon Settings di import lucide-react
+import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Gift, Store, Coins, Sparkles, Trash2, Users, Settings } from "lucide-react";
 
 export default function ParentDashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
-  // ✅ State diubah jadi Array untuk nampung banyak anak
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -46,7 +47,6 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // ✅ Narik data anak-anak pakai fungsi jamak
       const [profiles, missions, fetchedRewards] = await Promise.all([
         getChildrenProfiles(),
         getMissionsFromDB(),
@@ -126,10 +126,20 @@ export default function ParentDashboard() {
     <div className="min-h-screen bg-slate-50 pb-24 relative">
       
       <div className="bg-emerald-600 p-6 rounded-b-[2rem] shadow-md text-white">
-        <h1 className="text-2xl font-extrabold mb-1 tracking-tight">Dasbor Orang Tua</h1>
-        <p className="text-emerald-100 text-sm font-medium">Pantau kehebatan anak-anak hari ini</p>
+        {/* ✅ Ikon Roda Gigi ditaruh secara elegan di pojok kanan atas Header */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-extrabold mb-1 tracking-tight">Dasbor Orang Tua</h1>
+            <p className="text-emerald-100 text-sm font-medium">Pantau kehebatan anak-anak hari ini</p>
+          </div>
+          <Link 
+            href="/parent/settings" 
+            className="p-2.5 bg-emerald-500/50 hover:bg-emerald-500 rounded-full transition-all backdrop-blur-sm active:scale-95 shadow-sm border border-emerald-400/30"
+          >
+            <Settings className="w-5 h-5 text-white" />
+          </Link>
+        </div>
         
-        {/* ✅ DIBUAT LOOPING UNTUK SEMUA PROFIL ANAK */}
         <div className="mt-6 flex flex-col gap-3">
           {childrenData.map((child) => (
             <div key={child.id} className="bg-emerald-500/50 p-4 rounded-2xl flex items-center justify-between border border-emerald-400/50 backdrop-blur-sm">
@@ -148,7 +158,6 @@ export default function ParentDashboard() {
             </div>
           ))}
 
-          {/* Jika belum ada profil anak yang dibuat */}
           {childrenData.length === 0 && !isLoading && (
             <div className="bg-emerald-500/50 p-4 rounded-2xl flex flex-col items-center justify-center border border-emerald-400/50 border-dashed text-center">
               <Users className="w-8 h-8 text-emerald-200 mb-2" />
