@@ -57,7 +57,7 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
         {/* Form Inputs */}
         <form onSubmit={handleSubmit} className="space-y-5">
           
-          {/* Input Judul Misi */}
+          {/* Input Judul Misi - DIPERBAIKI KONTRASNYA */}
           <div className="space-y-2">
             <label className="flex items-center space-x-2 text-sm font-bold text-slate-700">
               <Target className="w-4 h-4 text-blue-500" />
@@ -68,7 +68,8 @@ export default function MissionForm({ onClose, onSubmit }: MissionFormProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Cth: Rapikan mainan setelah main" 
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              // Tambahan text-slate-900, font-bold, border-2, dan placeholder styling
+              className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 font-bold placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               required
             />
           </div>
