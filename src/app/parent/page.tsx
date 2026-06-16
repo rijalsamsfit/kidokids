@@ -4,15 +4,17 @@ import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import MissionForm from "@/components/MissionForm";
 import { addMissionToDB, getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
-import { getChildProfile } from "@/lib/childService";
+// ✅ Menggunakan fungsi baru dari sistem Multi-Profile
+import { getChildrenProfiles } from "@/lib/childService";
 import { addRewardToDB, getRewardsFromDB, deleteRewardFromDB } from "@/lib/rewardService";
 import { auth } from "@/lib/firebase";
-import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Gift, Store, Coins, Sparkles, Trash2 } from "lucide-react";
+import { Plus, CheckCircle2, Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Gift, Store, Coins, Sparkles, Trash2, Users } from "lucide-react";
 
 export default function ParentDashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
-  const [childData, setChildData] = useState<any>(null);
+  // ✅ State diubah jadi Array untuk nampung banyak anak
+  const [childrenData, setChildrenData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -44,13 +46,14 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [profile, missions, fetchedRewards] = await Promise.all([
-        getChildProfile(),
+      // ✅ Narik data anak-anak pakai fungsi jamak
+      const [profiles, missions, fetchedRewards] = await Promise.all([
+        getChildrenProfiles(),
         getMissionsFromDB(),
         getRewardsFromDB()
       ]);
       
-      setChildData(profile);
+      setChildrenData(profiles);
       setPendingMissions(missions);
       setRewards(fetchedRewards); 
     } catch (error) {
@@ -111,7 +114,7 @@ export default function ParentDashboard() {
     }
   };
 
-  if (isLoading && !childData) {
+  if (isLoading && childrenData.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-emerald-600 animate-pulse">
         Menyiapkan Dasbor...
@@ -124,21 +127,35 @@ export default function ParentDashboard() {
       
       <div className="bg-emerald-600 p-6 rounded-b-[2rem] shadow-md text-white">
         <h1 className="text-2xl font-extrabold mb-1 tracking-tight">Dasbor Orang Tua</h1>
-        <p className="text-emerald-100 text-sm font-medium">Pantau kehebatan si kecil hari ini</p>
+        <p className="text-emerald-100 text-sm font-medium">Pantau kehebatan anak-anak hari ini</p>
         
-        <div className="mt-6 bg-emerald-500/50 p-4 rounded-2xl flex items-center justify-between border border-emerald-400/50 backdrop-blur-sm">
-          <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-emerald-600 font-black text-2xl shadow-inner uppercase">
-              {childData?.name ? childData.name.charAt(0) : "?"}
+        {/* ✅ DIBUAT LOOPING UNTUK SEMUA PROFIL ANAK */}
+        <div className="mt-6 flex flex-col gap-3">
+          {childrenData.map((child) => (
+            <div key={child.id} className="bg-emerald-500/50 p-4 rounded-2xl flex items-center justify-between border border-emerald-400/50 backdrop-blur-sm">
+              <div className="flex items-center space-x-4">
+                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-emerald-600 font-black text-2xl shadow-inner uppercase">
+                  {child.name ? child.name.charAt(0) : "?"}
+                </div>
+                <div>
+                  <p className="font-bold text-lg leading-tight capitalize">{child.name}</p>
+                  <p className="text-xs text-emerald-100 font-semibold mt-1">Level {child.level || 1} • {child.xp || 0} XP • <span className="text-yellow-300 font-bold">{child.coins || 0} Koin</span></p>
+                </div>
+              </div>
+              <div className="p-3 bg-emerald-400 rounded-xl shadow-sm">
+                <Star className="w-7 h-7 text-yellow-300 fill-yellow-300" />
+              </div>
             </div>
-            <div>
-              <p className="font-bold text-lg leading-tight capitalize">{childData?.name || "Memuat..."}</p>
-              <p className="text-xs text-emerald-100 font-semibold mt-1">Level {childData?.level || 1} • {childData?.xp || 0} XP</p>
+          ))}
+
+          {/* Jika belum ada profil anak yang dibuat */}
+          {childrenData.length === 0 && !isLoading && (
+            <div className="bg-emerald-500/50 p-4 rounded-2xl flex flex-col items-center justify-center border border-emerald-400/50 border-dashed text-center">
+              <Users className="w-8 h-8 text-emerald-200 mb-2" />
+              <p className="text-emerald-50 text-sm font-bold">Belum ada profil anak.</p>
+              <p className="text-emerald-200 text-xs mt-1">Nanti kita tambahkan fitur buat anak di sini.</p>
             </div>
-          </div>
-          <div className="p-3 bg-emerald-400 rounded-xl shadow-sm">
-            <Star className="w-7 h-7 text-yellow-300 fill-yellow-300" />
-          </div>
+          )}
         </div>
       </div>
 
@@ -215,7 +232,6 @@ export default function ParentDashboard() {
               <Gift className="w-5 h-5 text-purple-500" />
               <span>Etalase Hadiah</span>
             </h2>
-            {/* ✅ PENUTUP TAG YANG BENAR (TYPO KEMARIN DI SINI) */}
             {rewards.length > 0 && (
               <button onClick={() => setIsRewardFormOpen(true)} className="text-purple-600 hover:bg-purple-100 bg-purple-50 p-1.5 rounded-lg transition-colors">
                 <Plus className="w-5 h-5" />
@@ -364,7 +380,6 @@ export default function ParentDashboard() {
         </div>
       )}
 
-      {/* ✅ FIX TS ERROR GAMBAR (string | null) */}
       {selectedImage && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
           <button onClick={() => setSelectedImage(null)} className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors backdrop-blur-md">

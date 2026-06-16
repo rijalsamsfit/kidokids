@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image"; // Tarik komponen Image
-import { ShieldCheck, Sparkles, LogIn } from "lucide-react";
+import Image from "next/image";
+import { ShieldCheck, Sparkles, LogIn, ArrowRight } from "lucide-react";
 import { auth } from "@/lib/firebase"; 
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
@@ -11,8 +11,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fungsi Login menggunakan Akun Google
-  const handleGoogleLogin = async (role: "parent" | "child") => {
+  // Fungsi Login KHUSUS Orang Tua (Manager) menggunakan Akun Google
+  const handleParentLogin = async () => {
     setIsLoading(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -22,18 +22,20 @@ export default function LoginPage() {
       const user = result.user;
       console.log(`Berhasil login! Selamat datang, ${user.displayName}`);
 
-      // Setelah sukses login, arahkan ke halaman yang sesuai
-      if (role === "parent") {
-        router.push("/parent");
-      } else {
-        router.push("/child");
-      }
+      // Setelah sukses login, langsung arahkan ke dasbor orang tua
+      // (Nanti di Fase 3, kita bisa selipin logika untuk redirect ke /setup-profile kalau dia user baru)
+      router.push("/parent");
     } catch (error: any) {
       console.error("Gagal login:", error);
       alert(`Oops, gagal login: ${error.message}. Pastikan popup tidak diblokir browser ya!`);
-    } finally {
       setIsLoading(false);
     }
+  };
+
+  // Fungsi Masuk KHUSUS Anak (Player) TANPA otentikasi Google
+  const handleChildEntrance = () => {
+    // Langsung arahkan ke halaman pilih profil anak (Fase 3 nanti)
+    router.push("/child/login");
   };
 
   return (
@@ -71,9 +73,9 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-4">
-          {/* Tombol Login Anak */}
+          {/* Tombol Masuk Anak (Tanpa Google Auth) */}
           <button
-            onClick={() => handleGoogleLogin("child")}
+            onClick={handleChildEntrance}
             disabled={isLoading}
             className="w-full flex items-center justify-between p-4 rounded-2xl border-2 border-blue-100 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 transition-all group disabled:opacity-50"
           >
@@ -86,12 +88,12 @@ export default function LoginPage() {
                 <p className="text-xs text-blue-600 font-medium">Main & Selesaikan Misi</p>
               </div>
             </div>
-            <LogIn className="w-6 h-6 text-blue-400 group-hover:text-blue-600 transition-colors" />
+            <ArrowRight className="w-6 h-6 text-blue-400 group-hover:text-blue-600 transition-colors" />
           </button>
 
-          {/* Tombol Login Orang Tua */}
+          {/* Tombol Login Orang Tua (Pakai Google Auth) */}
           <button
-            onClick={() => handleGoogleLogin("parent")}
+            onClick={handleParentLogin}
             disabled={isLoading}
             className="w-full flex items-center justify-between p-4 rounded-2xl border-2 border-emerald-100 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-all group disabled:opacity-50"
           >
@@ -101,7 +103,7 @@ export default function LoginPage() {
               </div>
               <div className="text-left">
                 <p className="font-bold text-emerald-900 text-lg">Dasbor Orang Tua</p>
-                <p className="text-xs text-emerald-600 font-medium">Pantau & Buat Misi</p>
+                <p className="text-xs text-emerald-600 font-medium">Masuk dengan Google</p>
               </div>
             </div>
             <LogIn className="w-6 h-6 text-emerald-400 group-hover:text-emerald-600 transition-colors" />
@@ -110,8 +112,8 @@ export default function LoginPage() {
 
         {/* Indikator Loading */}
         {isLoading && (
-          <p className="text-center text-sm font-bold text-blue-500 animate-pulse pt-2">
-            Membuka gerbang KIDOKIDS...
+          <p className="text-center text-sm font-bold text-emerald-600 animate-pulse pt-2">
+            Membuka gerbang KIDO...
           </p>
         )}
       </div>

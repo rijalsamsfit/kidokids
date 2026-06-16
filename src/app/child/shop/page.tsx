@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
-import { getChildProfile } from "@/lib/childService";
+// ✅ Gunakan fungsi penarik data Multi-Profile yang baru
+import { getChildrenProfiles } from "@/lib/childService";
 import { getRewardsFromDB } from "@/lib/rewardService";
 import { auth, db } from "@/lib/firebase";
 import { doc, updateDoc, increment } from "firebase/firestore";
@@ -27,13 +28,16 @@ export default function ChildShop() {
   const fetchShopData = async () => {
     setIsLoading(true);
     try {
-      // Tarik profil anak (buat ngecek koin) dan daftar hadiah sekaligus
-      const [profile, fetchedRewards] = await Promise.all([
-        getChildProfile(),
+      // ✅ Tarik daftar anak dan daftar hadiah sekaligus
+      const [profiles, fetchedRewards] = await Promise.all([
+        getChildrenProfiles(),
         getRewardsFromDB()
       ]);
       
-      setChildData(profile);
+      // ✅ Ambil profil anak pertama sebagai default sementara
+      if (profiles.length > 0) {
+        setChildData(profiles[0]);
+      }
       setRewards(fetchedRewards);
     } catch (error) {
       console.error("Gagal menarik data toko:", error);
@@ -54,6 +58,7 @@ export default function ChildShop() {
 
     try {
       // 1. Potong koin anak di Firebase (pakai angka minus)
+      // ✅ childData.id sekarang sudah valid dari fungsi getChildrenProfiles
       const childRef = doc(db, "children", childData.id);
       await updateDoc(childRef, {
         coins: increment(-reward.cost)
