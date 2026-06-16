@@ -22,15 +22,11 @@ export default function SettingsPage() {
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // State untuk visibilitas PIN
   const [visiblePins, setVisiblePins] = useState<{ [key: string]: boolean }>({});
-
-  // State untuk Modal Tambah Anak
   const [isAddChildOpen, setIsAddChildOpen] = useState(false);
   const [newChildName, setNewChildName] = useState("");
   const [newChildPin, setNewChildPin] = useState("");
   
-  // State untuk Modal Settings
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeChild, setActiveChild] = useState<any>(null);
   const [settingType, setSettingType] = useState<"screenTime" | "sleepTime" | "pin" | null>(null);
@@ -145,7 +141,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="p-6 space-y-8">
-        
         <section>
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 flex items-center gap-2">
             <Users className="w-4 h-4" /> Pasukan Pahlawan
@@ -173,11 +168,10 @@ export default function SettingsPage() {
                       </button>
                     </div>
 
-                    {/* ✅ KONTRAST TINGGI: Tombol Aksi Pengaturan */}
                     <div className="grid grid-cols-3 gap-2">
-                      <button onClick={() => openSettings(child, "screenTime")} className="text-[10px] font-extrabold bg-amber-100 text-amber-950 py-2 rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors">Waktu Main</button>
-                      <button onClick={() => openSettings(child, "sleepTime")} className="text-[10px] font-extrabold bg-indigo-100 text-indigo-950 py-2 rounded-lg border border-indigo-200 hover:bg-indigo-200 transition-colors">Jam Tidur</button>
-                      <button onClick={() => openSettings(child, "pin")} className="text-[10px] font-extrabold bg-emerald-100 text-emerald-950 py-2 rounded-lg border border-emerald-200 hover:bg-emerald-200 transition-colors">Ubah PIN</button>
+                      <button onClick={() => openSettings(child, "screenTime")} className="text-[10px] font-extrabold bg-amber-100 text-amber-950 py-2 rounded-lg border border-amber-200">Waktu Main</button>
+                      <button onClick={() => openSettings(child, "sleepTime")} className="text-[10px] font-extrabold bg-indigo-100 text-indigo-950 py-2 rounded-lg border border-indigo-200">Jam Tidur</button>
+                      <button onClick={() => openSettings(child, "pin")} className="text-[10px] font-extrabold bg-emerald-100 text-emerald-950 py-2 rounded-lg border border-emerald-200">Ubah PIN</button>
                     </div>
                   </div>
                 ))}
@@ -195,17 +189,11 @@ export default function SettingsPage() {
           </h2>
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
             <div className="w-full p-4 flex items-center justify-between bg-slate-50/50 cursor-default">
-              <div className="flex items-center space-x-3 text-slate-500">
-                <ShieldCheck className="w-5 h-5" />
-                <span className="font-bold text-sm">Akun Google</span>
-              </div>
-              <span className="text-xs font-semibold text-slate-400">{userEmail}</span>
+              <div className="flex items-center space-x-3 text-slate-500"><ShieldCheck className="w-5 h-5" /><span className="font-bold text-sm">Akun Google</span></div>
+              <span className="text-xs font-semibold text-slate-500">{userEmail}</span>
             </div>
             <Link href="/parent/billing" className="w-full p-4 flex items-center justify-between hover:bg-slate-50">
-              <div className="flex items-center space-x-3 text-slate-700">
-                <CreditCard className="w-5 h-5 text-blue-500" />
-                <span className="font-bold">Langganan</span>
-              </div>
+              <div className="flex items-center space-x-3 text-slate-700"><CreditCard className="w-5 h-5 text-blue-500" /><span className="font-bold">Langganan</span></div>
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </Link>
           </div>
@@ -216,21 +204,26 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* MODAL SETTINGS */}
+      {/* ✅ MODAL SETTINGS (READABLE) */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="font-black text-lg mb-4 capitalize">
-              Edit {settingType === "screenTime" ? "Batas Waktu (Menit)" : settingType === "sleepTime" ? "Jam Tidur" : "PIN Baru"}
-            </h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black text-lg capitalize text-slate-900">
+                {settingType === "screenTime" ? "Batas Waktu (Menit)" : settingType === "sleepTime" ? "Jam Tidur" : "PIN Baru"}
+              </h3>
+              <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <input 
               type={settingType === "pin" ? "text" : settingType === "screenTime" ? "number" : "time"}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className="w-full p-4 bg-slate-100 rounded-2xl mb-6 font-black text-lg outline-none"
+              className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl mb-6 font-black text-lg text-slate-900 outline-none focus:border-blue-500"
             />
             <div className="flex gap-3">
-              <button onClick={() => setIsSettingsOpen(false)} className="flex-1 py-4 bg-slate-100 rounded-2xl font-bold">Batal</button>
+              <button onClick={() => setIsSettingsOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-700 rounded-2xl font-bold">Batal</button>
               <button onClick={handleSaveSettings} disabled={isSubmitting} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold">
                 {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Simpan"}
               </button>
@@ -245,12 +238,12 @@ export default function SettingsPage() {
             <div className="bg-white w-full sm:w-[400px] rounded-t-[2rem] sm:rounded-3xl p-6 shadow-2xl">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-extrabold text-slate-800">Profil Baru</h3>
-                <button onClick={() => setIsAddChildOpen(false)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5" /></button>
+                <button onClick={() => setIsAddChildOpen(false)} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"><X className="w-5 h-5" /></button>
               </div>
               <form onSubmit={handleAddChild} className="space-y-4">
-                <input type="text" value={newChildName} onChange={(e) => setNewChildName(e.target.value)} placeholder="Nama Anak" className="w-full p-4 bg-slate-50 rounded-2xl" required />
-                <input type="text" pattern="[0-9]*" maxLength={4} value={newChildPin} onChange={(e) => setNewChildPin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="PIN (4 Digit)" className="w-full p-4 bg-slate-50 rounded-2xl" required />
-                <button type="submit" disabled={isSubmitting} className="w-full p-4 bg-blue-600 text-white rounded-2xl font-bold">{isSubmitting ? "..." : "Buat Profil"}</button>
+                <input type="text" value={newChildName} onChange={(e) => setNewChildName(e.target.value)} placeholder="Nama Anak" className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-bold" required />
+                <input type="text" pattern="[0-9]*" maxLength={4} value={newChildPin} onChange={(e) => setNewChildPin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="PIN (4 Digit)" className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-bold" required />
+                <button type="submit" disabled={isSubmitting} className="w-full p-4 bg-blue-600 text-white rounded-2xl font-bold">{isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Buat Profil"}</button>
               </form>
             </div>
         </div>
