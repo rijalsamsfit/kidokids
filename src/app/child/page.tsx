@@ -1,18 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
+// ✅ Import useRouter untuk menendang user yang belum masukin PIN
+import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
 import LockScreen from "@/components/LockScreen";
 import { useScreenTime } from "@/hooks/useScreenTime";
 import { useGameStore } from "@/store/useGameStore";
 import { submitMissionProofInDB } from "@/lib/missionService";
-import { auth, db } from "@/lib/firebase"; 
+// ✅ Cabut auth karena anak tidak butuh Google Auth lagi di sini
+import { db } from "@/lib/firebase"; 
 import { compressImage } from "@/utils/imageCompression";
-import { Trophy, Coins, Star, Zap, CheckCircle, Target, Timer, RefreshCw, Camera, Loader2, AlertCircle } from "lucide-react"; 
+import { Trophy, Coins, Star, Zap, CheckCircle, Target, Timer, Camera, Loader2, AlertCircle } from "lucide-react"; 
 import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
 export default function ChildDashboard() {
-  const { xp, level, coins } = useGameStore(); 
+  const router = useRouter();
+  // ✅ Tarik activeChildId dan Name dari Zustand
+  const { activeChildId, activeChildName, xp, level, coins } = useGameStore(); 
   const { isSleepMode, isTimeUp, formattedTime } = useScreenTime(30);
 
   const [mounted, setMounted] = useState(false);
@@ -23,39 +28,40 @@ export default function ChildDashboard() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // ✅ KEAMANAN: Kalau tidak ada data anak di brankas (belum masukin PIN), tendang ke halaman Login
+    if (!activeChildId) {
+      router.push("/child/login");
+      return;
+    }
+
     let unsubProfile: any;
     let unsubMissions: any;
 
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-      if (user) {
-        // ✅ 1. Listener Real-time untuk Profil Anak (Mesin Poin Otomatis)
-        unsubProfile = onSnapshot(doc(db, "children", user.uid), (doc) => {
-          if (doc.exists()) {
-            const data = doc.data();
-            setCloudProfile(data);
-            useGameStore.setState({ xp: data.xp, level: data.level, coins: data.coins });
-          }
-        });
-
-        // ✅ 2. Listener Real-time untuk Misi
-        const q = query(collection(db, "missions"), where("userId", "==", user.uid));
-        unsubMissions = onSnapshot(q, (snapshot) => {
-          const missions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          missions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setTodayMissions(missions);
-          setIsLoading(false);
-        });
-      } else {
-        setIsLoading(false);
+    // ✅ 1. Listener Real-time untuk Profil Anak Spesifik
+    unsubProfile = onSnapshot(doc(db, "children", activeChildId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setCloudProfile(data);
+        // Sinkronisasi data cloud ke Zustand biar UI langsung update
+        useGameStore.setState({ xp: data.xp, level: data.level, coins: data.coins });
       }
     });
 
+    // ✅ 2. Listener Real-time untuk Misi Milik Anak Ini Saja
+    const q = query(collection(db, "missions"), where("childId", "==", activeChildId));
+    unsubMissions = onSnapshot(q, (snapshot) => {
+      const missions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      missions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setTodayMissions(missions);
+      setIsLoading(false);
+    });
+
     return () => {
-      unsubscribeAuth();
       if (unsubProfile) unsubProfile();
       if (unsubMissions) unsubMissions();
     };
-  }, []);
+  }, [activeChildId, router]); // ✅ Bergantung pada perubahan activeChildId
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, missionId: string) => {
     const file = e.target.files?.[0];
@@ -74,6 +80,7 @@ export default function ChildDashboard() {
     }
   };
 
+  // ✅ Cek loading yang lebih presisi
   if (!mounted || (isLoading && !cloudProfile)) {
     return <div className="min-h-screen bg-blue-50 flex items-center justify-center font-bold text-blue-500 animate-pulse">Menyiapkan Petualangan...</div>;
   }
@@ -129,7 +136,7 @@ export default function ChildDashboard() {
           </div>
 
           <h2 className="text-2xl font-extrabold text-white mb-3 tracking-wide drop-shadow-sm capitalize">
-            {cloudProfile?.name || "Pahlawan"} Hebat!
+            {activeChildName || "Pahlawan"} Hebat!
           </h2>
 
           <div className="w-full bg-blue-950/20 rounded-full h-5 mb-2 p-1 backdrop-blur-md border border-white/20 shadow-inner relative">
@@ -160,7 +167,6 @@ export default function ChildDashboard() {
             )}
 
             {todayMissions.map((mission) => {
-              // ✅ Logika Status Dinamis Lu Udah Balik 100%
               const isApproved = mission.status === 'approved';
               const isCompleted = mission.status === 'completed'; 
               const isDone = isApproved || isCompleted;
@@ -197,7 +203,6 @@ export default function ChildDashboard() {
                     </div>
                   </div>
                   
-                  {/* ✅ Area Tombol Eksekusi / Kamera Lu Udah Balik 100% */}
                   <div className="flex items-center">
                     {isPendingApproval ? (
                       <span className="text-xs font-black bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full animate-pulse">

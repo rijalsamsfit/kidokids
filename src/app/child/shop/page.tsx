@@ -1,44 +1,46 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
-// ✅ Gunakan fungsi penarik data Multi-Profile yang baru
-import { getChildrenProfiles } from "@/lib/childService";
+import { useGameStore } from "@/store/useGameStore";
 import { getRewardsFromDB } from "@/lib/rewardService";
-import { auth, db } from "@/lib/firebase";
-import { doc, updateDoc, increment } from "firebase/firestore";
-import { Store, Coins, Gift, Sparkles, Lock } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, increment, getDoc } from "firebase/firestore";
+import { Store, Coins, Gift, Sparkles, Lock, Loader2 } from "lucide-react";
 
 export default function ChildShop() {
-  const [childData, setChildData] = useState<any>(null);
+  const router = useRouter();
+  // ✅ Tarik activeChildId, nama, dan koin langsung dari brankas Zustand
+  const { activeChildId, activeChildName, coins, addCoins } = useGameStore();
+
   const [rewards, setRewards] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        fetchShopData();
-      } else {
-        setIsLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+    // ✅ KEAMANAN: Kalau belum login PIN, tendang ke luar
+    if (!activeChildId) {
+      router.push("/child/login");
+      return;
+    }
+
+    fetchShopData();
+  }, [activeChildId, router]);
 
   const fetchShopData = async () => {
     setIsLoading(true);
     try {
-      // ✅ Tarik daftar anak dan daftar hadiah sekaligus
-      const [profiles, fetchedRewards] = await Promise.all([
-        getChildrenProfiles(),
-        getRewardsFromDB()
-      ]);
-      
-      // ✅ Ambil profil anak pertama sebagai default sementara
-      if (profiles.length > 0) {
-        setChildData(profiles[0]);
-      }
+      // ✅ Cuma butuh narik data etalase hadiah, karena data dompet udah ada di Zustand
+      const fetchedRewards = await getRewardsFromDB();
       setRewards(fetchedRewards);
+      
+      // Opsional: Sinkronkan ulang koin dari database untuk memastikan akurasi
+      const childRef = doc(db, "children", activeChildId!);
+      const childSnap = await getDoc(childRef);
+      if (childSnap.exists()) {
+        useGameStore.setState({ coins: childSnap.data().coins });
+      }
     } catch (error) {
       console.error("Gagal menarik data toko:", error);
     } finally {
@@ -47,8 +49,10 @@ export default function ChildShop() {
   };
 
   const handleBuyReward = async (reward: any) => {
+    if (!activeChildId) return;
+
     // Keamanan ganda: Cek apakah koin cukup
-    if (!childData || childData.coins < reward.cost) {
+    if (coins < reward.cost) {
       alert("Yah, koin kamu belum cukup! Yuk kerjain misi lagi buat tambah koin.");
       return;
     }
@@ -56,30 +60,30 @@ export default function ChildShop() {
     const confirmBuy = window.confirm(`Kamu mau menukar ${reward.cost} Koin dengan hadiah "${reward.title}"?`);
     if (!confirmBuy) return;
 
+    setIsProcessing(true);
     try {
       // 1. Potong koin anak di Firebase (pakai angka minus)
-      // ✅ childData.id sekarang sudah valid dari fungsi getChildrenProfiles
-      const childRef = doc(db, "children", childData.id);
+      const childRef = doc(db, "children", activeChildId);
       await updateDoc(childRef, {
         coins: increment(-reward.cost)
       });
 
-      // 2. Update tampilan koin di layar secara langsung tanpa perlu loading ulang
-      setChildData((prev: any) => ({
-        ...prev,
-        coins: prev.coins - reward.cost
-      }));
+      // 2. Update koin di Zustand (otomatis layar langsung update)
+      addCoins(-reward.cost);
 
       alert(`🎉 Hore! Kamu berhasil menukarkan hadiah: ${reward.title}. Langsung kasih tau Ayah/Ibu ya buat minta hadiahnya!`);
     } catch (error) {
       alert("Gagal menukar koin. Pastikan internet kamu lancar ya!");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  if (isLoading && !childData) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-amber-50 flex items-center justify-center font-bold text-amber-500 animate-pulse">
-        Membuka Pintu Toko...
+      <div className="min-h-screen bg-amber-50 flex flex-col items-center justify-center font-bold text-amber-500 gap-3">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        <p>Membuka Pintu Toko...</p>
       </div>
     );
   }
@@ -108,11 +112,11 @@ export default function ChildShop() {
           <div className="mt-6 bg-white/20 p-4 rounded-2xl flex items-center justify-between border border-white/30 backdrop-blur-md shadow-inner">
             <div className="flex flex-col">
               <span className="text-amber-100 text-[11px] font-black uppercase tracking-wider mb-0.5">Dompet Koin</span>
-              <span className="font-extrabold text-xl leading-tight capitalize">{childData?.name || "Pahlawan"}</span>
+              <span className="font-extrabold text-xl leading-tight capitalize">{activeChildName || "Pahlawan"}</span>
             </div>
             <div className="bg-white px-4 py-2 rounded-xl shadow-sm flex items-center gap-2">
               <Coins className="w-6 h-6 text-amber-500" />
-              <span className="font-black text-2xl text-amber-600">{childData?.coins || 0}</span>
+              <span className="font-black text-2xl text-amber-600">{coins}</span>
             </div>
           </div>
         </div>
@@ -137,7 +141,7 @@ export default function ChildShop() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {rewards.map((reward) => {
               // Cek apakah koin anak cukup untuk beli item ini
-              const isAffordable = childData && childData.coins >= reward.cost;
+              const isAffordable = coins >= reward.cost;
 
               return (
                 <div 
@@ -162,14 +166,16 @@ export default function ChildShop() {
                   
                   <button 
                     onClick={() => handleBuyReward(reward)}
-                    disabled={!isAffordable}
+                    disabled={!isAffordable || isProcessing}
                     className={`w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
                       isAffordable 
                         ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200 active:scale-95" 
                         : "bg-slate-100 text-slate-400 cursor-not-allowed"
                     }`}
                   >
-                    {isAffordable ? (
+                    {isProcessing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isAffordable ? (
                       <>Tukar Koin</>
                     ) : (
                       <><Lock className="w-4 h-4" /> Koin Kurang</>
