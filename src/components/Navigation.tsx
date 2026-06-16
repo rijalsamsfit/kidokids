@@ -2,50 +2,63 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck, Trophy } from "lucide-react";
+// ✅ Import semua ikon game dan dashboard yang kita butuhkan
+import { Trophy, ShieldCheck, Store, Gamepad2, BarChart3, Home } from "lucide-react";
 
 export default function Navigation() {
   const pathname = usePathname();
 
-  // Sembunyikan navigasi bawah di halaman Login atau Landing Page awal
-  // Navigasi ini hanya muncul kalau user sudah masuk ke area dalam aplikasi
+  // Sembunyikan navigasi bawah di halaman Login, Register, atau Landing Page awal
   if (pathname === "/" || pathname === "/login" || pathname === "/register") {
     return null;
   }
 
-  // Menu navigasi. Nanti bisa kita tambah sesuai perkembangan fitur.
-  const navItems = [
-    { name: "Area Anak", href: "/child", icon: Trophy },
-    { name: "Orang Tua", href: "/parent", icon: ShieldCheck },
+  // 👦 1. MENU KHUSUS ANAK (Gamified RPG Style Layout)
+  const childNavItems = [
+    { name: "Pahlawan", href: "/child", icon: Gamepad2, activeColor: "text-blue-600", activeBg: "bg-blue-100" },
+    { name: "Toko Kido", href: "/child/shop", icon: Store, activeColor: "text-amber-500", activeBg: "bg-amber-100" },
   ];
 
+  // 🧕 2. MENU KHUSUS ORANG TUA (Command Center Layout)
+  const parentNavItems = [
+    { name: "Pantau Misi", href: "/parent", icon: ShieldCheck, activeColor: "text-emerald-600", activeBg: "bg-emerald-100" },
+    { name: "Analisis AI", href: "/parent/analytics", icon: BarChart3, activeColor: "text-purple-600", activeBg: "bg-purple-100" },
+  ];
+
+  // 🛠️ 3. DETEKSI AKSI: Tentukan menu mana yang mau dimunculkan berdasarkan rute URL
+  const isChildSpace = pathname.startsWith("/child");
+  const currentNavItems = isChildSpace ? childNavItems : parentNavItems;
+
   return (
-    // Membungkus navigasi di bagian paling bawah layar (fixed bottom)
-    // Sesuai Rule #6: Responsif Mobile First
-    <nav className="fixed bottom-0 left-0 right-0 w-full bg-white border-t border-slate-200 z-50">
-      {/* max-w-md mx-auto memastikan navigasi tidak melebar ke kiri-kanan saat dibuka di layar komputer/laptop */}
+    // Membungkus navigasi di bagian paling bawah layar (fixed bottom) - Mobile First
+    <nav className="fixed bottom-0 left-0 right-0 w-full bg-white border-t border-slate-200 z-50 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
       <div className="max-w-md mx-auto flex justify-around items-center h-16 pb-1">
-        {navItems.map((item) => {
-          // Mengecek apakah halaman saat ini sedang aktif (URL cocok dengan href menu)
-          const isActive = pathname.startsWith(item.href);
+        {currentNavItems.map((item) => {
+          // ✅ Logika cek aktif yang pintar agar sub-halaman gak bentrok highlight-nya
+          const isActive = item.href === "/child" || item.href === "/parent"
+            ? pathname === item.href 
+            : pathname.startsWith(item.href);
+
           const Icon = item.icon;
           
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                isActive ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-200 ${
+                isActive ? item.activeColor : "text-slate-400 hover:text-slate-500"
               }`}
             >
-              <Icon 
-                className={`w-6 h-6 ${
-                  isActive ? "fill-blue-100 stroke-2" : "stroke-[1.5]"
-                }`} 
-              />
+              <div className={`p-1.5 rounded-xl transition-all duration-300 ${isActive ? item.activeBg : "bg-transparent"}`}>
+                <Icon 
+                  className={`w-5 h-5 transition-transform duration-200 ${
+                    isActive ? "stroke-[2.5] scale-110" : "stroke-[1.5]"
+                  }`} 
+                />
+              </div>
               <span 
-                className={`text-[11px] font-bold ${
-                  isActive ? "text-blue-600" : "text-slate-500"
+                className={`text-[10px] tracking-wide font-extrabold transition-colors ${
+                  isActive ? item.activeColor : "text-slate-500 font-bold"
                 }`}
               >
                 {item.name}
