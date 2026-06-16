@@ -13,8 +13,12 @@ interface GameState {
   // ✅ TAMBAHAN: Laci baru untuk sistem Lemari Trofi
   missionsCompleted: number;
   unlockedBadges: string[];
+
+  // ✅ TAMBAHAN: Hydration Guard
+  hasHydrated: boolean;
   
   // Fungsi-fungsi (Actions)
+  setHasHydrated: (state: boolean) => void;
   setActiveChild: (id: string, name: string, xp: number, level: number, coins: number, missionsCompleted?: number, unlockedBadges?: string[]) => void;
   clearActiveChild: () => void;
   addXP: (amount: number) => void;
@@ -36,6 +40,10 @@ export const useGameStore = create<GameState>()(
       streak: 0,
       missionsCompleted: 0, // ✅ Awal mula misi 0
       unlockedBadges: [],   // ✅ Awal mula lemari kosong
+      hasHydrated: false,   // ✅ Awal mula status hidratasi false
+
+      // ✅ Setter untuk status hidratasi
+      setHasHydrated: (state) => set({ hasHydrated: state }),
 
       // Saat anak sukses login pakai PIN, simpan identitasnya
       setActiveChild: (id, name, xp, level, coins, missionsCompleted = 0, unlockedBadges = []) => set({
@@ -98,6 +106,10 @@ export const useGameStore = create<GameState>()(
     {
       // Nama key yang akan tersimpan di Local Storage HP/Browser
       name: 'kido-game-storage',
+      // ✅ Logika Hydration Guard: Set true setelah storage berhasil dibaca
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      }
     }
   )
 );

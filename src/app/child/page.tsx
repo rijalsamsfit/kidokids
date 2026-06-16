@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-// ✅ Import useRouter untuk menendang user yang belum masukin PIN
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
 import LockScreen from "@/components/LockScreen";
 import { useScreenTime } from "@/hooks/useScreenTime";
 import { useGameStore } from "@/store/useGameStore";
 import { submitMissionProofInDB } from "@/lib/missionService";
-// ✅ Cabut auth karena anak tidak butuh Google Auth lagi di sini
 import { db } from "@/lib/firebase"; 
 import { compressImage } from "@/utils/imageCompression";
 import { Trophy, Coins, Star, Zap, CheckCircle, Target, Timer, Camera, Loader2, AlertCircle } from "lucide-react"; 
@@ -16,10 +14,10 @@ import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
 export default function ChildDashboard() {
   const router = useRouter();
-  // ✅ Tarik activeChildId, Name, dan unlockedBadges dari Zustand
-  const { activeChildId, activeChildName, xp, level, coins, unlockedBadges } = useGameStore(); 
+  // Tarik hasHydrated dan data lainnya dari Zustand
+  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, unlockedBadges } = useGameStore(); 
   
-  // ✅ Ambil grantBonusTime dari hook
+  // Ambil grantBonusTime dari hook
   const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
 
   const [mounted, setMounted] = useState(false);
@@ -27,25 +25,29 @@ export default function ChildDashboard() {
   const [cloudProfile, setCloudProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [showBadgeAlert, setShowBadgeAlert] = useState(false); // ✅ State untuk Pop-up Selebrasi Badge
+  const [showBadgeAlert, setShowBadgeAlert] = useState(false);
 
-  // ✅ Bikin brankas referensi untuk ngecek perubahan status misi & badge
+  // Bikin brankas referensi untuk ngecek perubahan status misi & badge
   const prevMissionsRef = useRef<any[]>([]);
   const prevBadgesRef = useRef<string[] | null>(null);
 
   useEffect(() => {
     setMounted(true);
     
-    // ✅ KEAMANAN: Kalau tidak ada data anak di brankas (belum masukin PIN), tendang ke halaman Login
+    // GUARD 1: Tunggu sampai Zustand selesai hidratasi
+    if (!hasHydrated) return;
+
+    // GUARD 2: Kalau udah hidratasi tapi gak ada ID, tendang ke login
     if (!activeChildId) {
       router.push("/child/login");
       return;
     }
 
+    // GUARD 3: Kalau sampai di sini, berarti udah aman. Baru jalankan Firebase!
     let unsubProfile: any;
     let unsubMissions: any;
 
-    // ✅ 1. Listener Real-time untuk Profil Anak Spesifik
+    // 1. Listener Real-time untuk Profil Anak Spesifik
     unsubProfile = onSnapshot(doc(db, "children", activeChildId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -53,7 +55,7 @@ export default function ChildDashboard() {
 
         const currentBadges = data.unlockedBadges || [];
 
-        // 🔥 DETEKTOR BADGE: Cek apakah ada trofi baru yang terbuka
+        // DETEKTOR BADGE: Cek apakah ada trofi baru yang terbuka
         if (prevBadgesRef.current !== null) {
           if (currentBadges.length > prevBadgesRef.current.length) {
             setShowBadgeAlert(true); // Munculkan pop-up selebrasi
@@ -72,12 +74,12 @@ export default function ChildDashboard() {
       }
     });
 
-    // ✅ 2. Listener Real-time untuk Misi Milik Anak Ini Saja
+    // 2. Listener Real-time untuk Misi Milik Anak Ini Saja
     const q = query(collection(db, "missions"), where("childId", "==", activeChildId));
     unsubMissions = onSnapshot(q, (snapshot) => {
       const missions: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // 🔥 DETEKTOR APPROVAL: Cek apakah ada misi yang baru saja disetujui ortu
+      // DETEKTOR APPROVAL: Cek apakah ada misi yang baru saja disetujui ortu
       if (prevMissionsRef.current.length > 0) {
         missions.forEach(mission => {
           const prevMission = prevMissionsRef.current.find(m => m.id === mission.id);
@@ -103,7 +105,7 @@ export default function ChildDashboard() {
       if (unsubProfile) unsubProfile();
       if (unsubMissions) unsubMissions();
     };
-  }, [activeChildId, router, grantBonusTime]);
+  }, [activeChildId, router, grantBonusTime, hasHydrated]); // Tambahkan hasHydrated di dependency array
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, missionId: string) => {
     const file = e.target.files?.[0];
@@ -122,9 +124,14 @@ export default function ChildDashboard() {
     }
   };
 
-  // ✅ Cek loading yang lebih presisi
-  if (!mounted || (isLoading && !cloudProfile)) {
-    return <div className="min-h-screen bg-blue-50 flex items-center justify-center font-bold text-blue-500 animate-pulse">Menyiapkan Petualangan...</div>;
+  // PERBAIKAN LOADING: Jika belum hydrated atau data belum lengkap, tetap tampilkan loader
+  if (!mounted || !hasHydrated || (isLoading && !cloudProfile)) {
+    return (
+      <div className="min-h-screen bg-blue-50 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        <p className="font-bold text-blue-500 animate-pulse">Menyiapkan Petualangan...</p>
+      </div>
+    );
   }
 
   const currentLevelXP = (level - 1) * (level - 1) * 100;
@@ -287,7 +294,7 @@ export default function ChildDashboard() {
 
       <Navigation />
 
-      {/* ✅ POP-UP SELEBRASI BADGE BARU */}
+      {/* POP-UP SELEBRASI BADGE BARU */}
       {showBadgeAlert && (
         <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in duration-300">
           <div className="bg-gradient-to-b from-yellow-300 to-amber-500 p-1 rounded-3xl animate-bounce shadow-[0_0_40px_rgba(250,204,21,0.6)]">
