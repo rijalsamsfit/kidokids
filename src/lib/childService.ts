@@ -2,8 +2,8 @@ import { collection, addDoc, getDocs, doc, getDoc, updateDoc, query, where } fro
 import { db, auth } from "./firebase";
 
 /**
- * 1. Membuat Profil Anak Baru (Dipanggil oleh Orang Tua di Dasbor)
- * Sistem akan meng-generate ID unik untuk setiap anak.
+ * 1. Membuat Profil Anak Baru 
+ * ✅ Update: Menambahkan field default untuk Jam Tidur & Limit Layar
  */
 export const createChildProfile = async (name: string, pin: string) => {
   try {
@@ -12,11 +12,13 @@ export const createChildProfile = async (name: string, pin: string) => {
 
     const childData = {
       name,
-      pin, // PIN 4 digit rahasia untuk anak masuk
+      pin, 
       level: 1,
       xp: 0,
       coins: 0,
-      parentId: user.uid, // Diikat ke akun Google orang tuanya
+      sleepTime: "21:00",      // Default Jam Tidur
+      screenTimeLimit: 60,     // Default Limit Main (menit)
+      parentId: user.uid, 
       createdAt: new Date().toISOString()
     };
 
@@ -30,7 +32,6 @@ export const createChildProfile = async (name: string, pin: string) => {
 
 /**
  * 2. Mengambil Semua Profil Anak Milik Satu Orang Tua
- * Dipakai di layar Pilih Anak dan Dasbor Orang Tua
  */
 export const getChildrenProfiles = async () => {
   try {
@@ -51,7 +52,7 @@ export const getChildrenProfiles = async () => {
 };
 
 /**
- * 3. Mengambil Satu Profil Anak Spesifik berdasarkan ID
+ * 3. Mengambil Satu Profil Anak Spesifik
  */
 export const getChildProfileById = async (childId: string) => {
   try {
@@ -63,18 +64,16 @@ export const getChildProfileById = async (childId: string) => {
     }
     return null;
   } catch (error) {
-    console.error("Gagal mengambil profil anak spesifik:", error);
+    console.error("Gagal mengambil profil anak:", error);
     return null;
   }
 };
 
 /**
- * 4. Mengupdate XP dan Level Anak
- * PARAMETER BARU: Wajib mengirim childId karena anak tidak punya auth.uid sendiri
+ * 4. Update XP dan Level (Sistem Game)
  */
 export const updateChildProgressInDB = async (childId: string, newXp: number, newLevel: number) => {
   try {
-    // Kita tidak lagi mengecek auth.currentUser di sini karena anak main tanpa login Google
     if (!childId) throw new Error("ID Anak tidak valid");
 
     const childRef = doc(db, "children", childId);
@@ -87,6 +86,41 @@ export const updateChildProgressInDB = async (childId: string, newXp: number, ne
     return true;
   } catch (error) {
     console.error("Gagal update progress anak:", error);
+    return false;
+  }
+};
+
+/**
+ * 5. BARU: Update PIN Anak
+ * Wajib mengecek apakah user yang login adalah parent sebelum bisa ubah PIN
+ */
+export const updateChildPin = async (childId: string, newPin: string) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Harus login sebagai orang tua");
+
+    const childRef = doc(db, "children", childId);
+    await updateDoc(childRef, { pin: newPin });
+    return true;
+  } catch (error) {
+    console.error("Gagal update PIN:", error);
+    return false;
+  }
+};
+
+/**
+ * 6. BARU: Update Pengaturan (Jam Tidur & Limit)
+ */
+export const updateChildSettings = async (childId: string, settings: { sleepTime?: string, screenTimeLimit?: number }) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Harus login sebagai orang tua");
+
+    const childRef = doc(db, "children", childId);
+    await updateDoc(childRef, settings);
+    return true;
+  } catch (error) {
+    console.error("Gagal update pengaturan anak:", error);
     return false;
   }
 };
