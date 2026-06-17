@@ -10,17 +10,17 @@ import {
 export default function Navigation() {
   const pathname = usePathname();
 
-  // Sembunyikan navigasi di halaman awal/login
-  if (pathname === "/" || pathname === "/login" || pathname === "/register") {
+  // ✅ PERBAIKAN: Sembunyikan navigasi juga di halaman login PIN Anak
+  if (pathname === "/" || pathname === "/login" || pathname === "/register" || pathname === "/child/login") {
     return null;
   }
 
   // 👦 1. MENU KHUSUS ANAK (Full 4 Menu RPG)
   const childNavItems = [
     { name: "Pahlawan", href: "/child", icon: Home, activeColor: "text-blue-600", activeBg: "bg-blue-100" },
-    { name: "Misi", href: "/child/quests", icon: Target, activeColor: "text-rose-500", activeBg: "bg-rose-100" },
+    { name: "Misi", href: "/child/missions", icon: Target, activeColor: "text-rose-500", activeBg: "bg-rose-100" }, // ✅ Disesuaikan jadi missions
     { name: "Toko Kido", href: "/child/shop", icon: Store, activeColor: "text-amber-500", activeBg: "bg-amber-100" },
-    { name: "Rapor", href: "/child/achievements", icon: Trophy, activeColor: "text-purple-500", activeBg: "bg-purple-100" },
+    { name: "Rapor", href: "/child/badges", icon: Trophy, activeColor: "text-purple-500", activeBg: "bg-purple-100" }, // ✅ PERBAIKAN: Arahkan ke halaman Lemari Trofi yg kita buat
   ];
 
   // 🧕 2. MENU KHUSUS ORANG TUA (Full 4 Menu Command Center)

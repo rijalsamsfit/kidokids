@@ -9,15 +9,16 @@ import { useGameStore } from "@/store/useGameStore";
 import { submitMissionProofInDB } from "@/lib/missionService";
 import { db } from "@/lib/firebase"; 
 import { compressImage } from "@/utils/imageCompression";
-import { Trophy, Coins, Star, Zap, CheckCircle, Target, Timer, Camera, Loader2, AlertCircle } from "lucide-react"; 
+// ✅ TAMBAHAN: Import ikon LogOut
+import { Trophy, Coins, Star, Zap, CheckCircle, Target, Timer, Camera, Loader2, AlertCircle, LogOut } from "lucide-react"; 
 import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
 export default function ChildDashboard() {
   const router = useRouter();
-  // Tarik hasHydrated dan data lainnya dari Zustand
-  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, unlockedBadges } = useGameStore(); 
   
-  // Ambil grantBonusTime dari hook
+  // ✅ TAMBAHAN: Tarik fungsi clearActiveChild dari Zustand
+  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, unlockedBadges, clearActiveChild } = useGameStore(); 
+  
   const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
 
   const [mounted, setMounted] = useState(false);
@@ -27,7 +28,6 @@ export default function ChildDashboard() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [showBadgeAlert, setShowBadgeAlert] = useState(false);
 
-  // Bikin brankas referensi untuk ngecek perubahan status misi & badge
   const prevMissionsRef = useRef<any[]>([]);
   const prevBadgesRef = useRef<string[] | null>(null);
 
@@ -47,7 +47,6 @@ export default function ChildDashboard() {
     let unsubProfile: any;
     let unsubMissions: any;
 
-    // 1. Listener Real-time untuk Profil Anak Spesifik
     unsubProfile = onSnapshot(doc(db, "children", activeChildId), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -55,15 +54,13 @@ export default function ChildDashboard() {
 
         const currentBadges = data.unlockedBadges || [];
 
-        // DETEKTOR BADGE: Cek apakah ada trofi baru yang terbuka
         if (prevBadgesRef.current !== null) {
           if (currentBadges.length > prevBadgesRef.current.length) {
-            setShowBadgeAlert(true); // Munculkan pop-up selebrasi
+            setShowBadgeAlert(true); 
           }
         }
         prevBadgesRef.current = currentBadges;
 
-        // Sinkronisasi data cloud ke Zustand biar UI dan Laci Trofi langsung update
         useGameStore.setState({ 
           xp: data.xp, 
           level: data.level, 
@@ -74,26 +71,21 @@ export default function ChildDashboard() {
       }
     });
 
-    // 2. Listener Real-time untuk Misi Milik Anak Ini Saja
     const q = query(collection(db, "missions"), where("childId", "==", activeChildId));
     unsubMissions = onSnapshot(q, (snapshot) => {
       const missions: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
-      // DETEKTOR APPROVAL: Cek apakah ada misi yang baru saja disetujui ortu
       if (prevMissionsRef.current.length > 0) {
         missions.forEach(mission => {
           const prevMission = prevMissionsRef.current.find(m => m.id === mission.id);
           
-          // Kalau misi sebelumnya belum approved, tapi sekarang jadi approved
           if (prevMission && prevMission.status !== 'approved' && mission.status === 'approved') {
-            // CAIRKAN BONUS SECARA INSTAN!
             grantBonusTime(10);
             alert(`Hore! Bukti misimu "${mission.title}" disetujui! Waktu mainmu ditambah 10 Menit! 🎉`);
           }
         });
       }
       
-      // Simpan state misi terbaru ke dalam ref untuk perbandingan selanjutnya
       prevMissionsRef.current = missions;
 
       missions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -105,7 +97,7 @@ export default function ChildDashboard() {
       if (unsubProfile) unsubProfile();
       if (unsubMissions) unsubMissions();
     };
-  }, [activeChildId, router, grantBonusTime, hasHydrated]); // Tambahkan hasHydrated di dependency array
+  }, [activeChildId, router, grantBonusTime, hasHydrated]); 
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, missionId: string) => {
     const file = e.target.files?.[0];
@@ -124,7 +116,14 @@ export default function ChildDashboard() {
     }
   };
 
-  // PERBAIKAN LOADING: Jika belum hydrated atau data belum lengkap, tetap tampilkan loader
+  // ✅ TAMBAHAN: Fungsi untuk Ganti Akun/Logout
+  const handleLogout = () => {
+    if (window.confirm("Apakah kamu ingin keluar dan ganti Pahlawan?")) {
+      clearActiveChild(); // Hapus sesi dari Zustand
+      router.push("/child/login"); // Lempar balik ke layar PIN
+    }
+  };
+
   if (!mounted || !hasHydrated || (isLoading && !cloudProfile)) {
     return (
       <div className="min-h-screen bg-blue-50 flex flex-col items-center justify-center gap-3">
@@ -159,7 +158,7 @@ export default function ChildDashboard() {
         </div>
         
         <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
+          <div className="flex items-center space-x-1 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 hidden sm:flex">
             <Timer className="w-4 h-4 text-slate-400" />
             <span className="font-extrabold text-slate-500 text-sm tracking-widest">{formattedTime}</span>
           </div>
@@ -167,6 +166,15 @@ export default function ChildDashboard() {
             <Coins className="w-5 h-5 text-amber-500" />
             <span className="font-extrabold text-amber-700">{coins}</span>
           </div>
+          
+          {/* ✅ TAMBAHAN: Tombol Ganti Pahlawan */}
+          <button 
+            onClick={handleLogout}
+            className="flex items-center justify-center w-10 h-10 bg-rose-50 text-rose-500 rounded-full border border-rose-100 hover:bg-rose-500 hover:text-white transition-colors shadow-sm ml-1 active:scale-90"
+            title="Ganti Pahlawan"
+          >
+            <LogOut className="w-5 h-5 ml-1" />
+          </button>
         </div>
       </div>
 
@@ -308,7 +316,7 @@ export default function ChildDashboard() {
               <button
                 onClick={() => {
                   setShowBadgeAlert(false);
-                  router.push("/child/badges"); // Opsional: Bawa anak langsung ke halaman Lemari Trofi
+                  router.push("/child/badges"); 
                 }}
                 className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3.5 rounded-xl active:scale-95 transition-transform shadow-lg relative z-10"
               >
