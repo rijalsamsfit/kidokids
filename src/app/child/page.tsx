@@ -7,7 +7,7 @@ import LockScreen from "@/components/LockScreen";
 import { useScreenTime } from "@/hooks/useScreenTime";
 import { useGameStore } from "@/store/useGameStore";
 import { db } from "@/lib/firebase"; 
-import { Trophy, Coins, Star, Zap, Timer, Loader2, LogOut, Gamepad2, Sparkles } from "lucide-react"; 
+import { Trophy, Coins, Star, Zap, Timer, Loader2, LogOut, Gamepad2, Sparkles, Flame, Play } from "lucide-react"; 
 import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
 export default function ChildDashboard() {
@@ -27,16 +27,13 @@ export default function ChildDashboard() {
   useEffect(() => {
     setMounted(true);
     
-    // GUARD 1: Tunggu sampai Zustand selesai hidratasi
     if (!hasHydrated) return;
 
-    // GUARD 2: Kalau udah hidratasi tapi gak ada ID, tendang ke login
     if (!activeChildId) {
       router.push("/child/login");
       return;
     }
 
-    // GUARD 3: Kalau sampai di sini, berarti udah aman. Baru jalankan Firebase!
     let unsubProfile: any;
     let unsubMissions: any;
 
@@ -64,7 +61,6 @@ export default function ChildDashboard() {
       }
     });
 
-    // Tetap pantau misi HANYA untuk ngasih Pop-Up Bonus Waktu kalau di-approve ortu
     const q = query(collection(db, "missions"), where("childId", "==", activeChildId));
     unsubMissions = onSnapshot(q, (snapshot) => {
       const missions: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -90,7 +86,6 @@ export default function ChildDashboard() {
     };
   }, [activeChildId, router, grantBonusTime, hasHydrated]); 
 
-  // Fungsi untuk Ganti Akun/Logout
   const handleLogout = () => {
     if (window.confirm("Apakah kamu ingin keluar dan ganti Pahlawan?")) {
       clearActiveChild(); 
@@ -114,15 +109,15 @@ export default function ChildDashboard() {
   const progressPercentage = Math.min(100, Math.max(0, (xpRequired > 0 ? (xpProgress / xpRequired) * 100 : 0)));
 
   return (
-    <div className="min-h-screen bg-blue-50 pb-24 font-sans relative">
+    // 1. MAIN CONTAINER: Full screen, flex-col, no scroll, safe bottom padding
+    <div className="h-[100dvh] bg-blue-50 font-sans relative flex flex-col overflow-hidden pb-24">
       
       {isSleepMode && <LockScreen type="sleep" />}
       {!isSleepMode && isTimeUp && <LockScreen type="timeUp" />}
 
-      {/* ✅ PERBAIKAN HEADER: Memaksa Screen Time Muncul di HP */}
-      <div className="bg-white p-4 rounded-b-3xl shadow-sm sticky top-0 z-10">
+      {/* 2. TOP HUD: Fixed at the top */}
+      <div className="flex-none bg-white p-4 rounded-b-3xl shadow-sm z-10 relative">
         <div className="flex flex-col gap-3">
-          {/* Baris Atas: Level & Tombol Logout */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="bg-blue-100 p-2 rounded-xl">
@@ -143,7 +138,6 @@ export default function ChildDashboard() {
             </button>
           </div>
 
-          {/* Baris Bawah: Waktu & Koin (Pasti muncul di HP) */}
           <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100">
             <div className="flex items-center space-x-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex-1 mr-2 justify-center">
               <Timer className="w-4 h-4 text-slate-400" />
@@ -157,21 +151,25 @@ export default function ChildDashboard() {
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
-        
-        {/* Visualisasi Avatar / Pahlawan */}
-        <div className="flex flex-col items-center justify-center bg-gradient-to-b from-blue-400 to-blue-600 rounded-[2.5rem] p-8 shadow-xl shadow-blue-200 relative overflow-hidden border-4 border-white">
+      {/* 3. CENTER STAGE: Flex-1 pushes content to middle and bottom portal down */}
+      <div className="flex-1 relative flex flex-col items-center justify-center p-6">
+        {/* Glow effect behind avatar */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+           <div className="w-64 h-64 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
+        </div>
+
+        <div className="flex flex-col items-center justify-center bg-gradient-to-b from-blue-400 to-blue-600 rounded-[2.5rem] p-8 shadow-xl shadow-blue-200 relative overflow-hidden border-4 border-white w-full max-w-sm">
           <div className="absolute top-4 left-4 animate-pulse"><Star className="w-6 h-6 text-white/50" /></div>
           <div className="absolute bottom-10 right-6 animate-pulse delay-150"><Star className="w-8 h-8 text-white/40" /></div>
 
-          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-5 shadow-2xl border-4 border-blue-100 relative transform transition-transform hover:scale-105">
+          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-5 shadow-2xl border-4 border-blue-100 relative transform transition-transform hover:scale-105 active:scale-95 cursor-pointer">
             <div className="text-6xl drop-shadow-md">🦸‍♂️</div>
             <div className="absolute -bottom-2 -right-2 bg-amber-400 text-white font-bold p-2.5 rounded-full border-4 border-white shadow-lg animate-bounce">
               <Zap className="w-5 h-5 fill-white" />
             </div>
           </div>
 
-          <h2 className="text-2xl font-extrabold text-white mb-3 tracking-wide drop-shadow-sm capitalize">
+          <h2 className="text-2xl font-extrabold text-white mb-3 tracking-wide drop-shadow-sm capitalize text-center">
             {activeChildName || "Pahlawan"} Hebat!
           </h2>
 
@@ -187,30 +185,36 @@ export default function ChildDashboard() {
             {xp} / {nextLevelXP} XP menuju Level {level + 1}
           </p>
         </div>
+      </div>
 
-        {/* UI BARU: ARENA BERMAIN (Menggantikan Daftar Misi) */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-[2rem] border-2 border-indigo-100 shadow-sm">
-          <div className="absolute -top-4 -right-4 text-purple-200 opacity-50">
-            <Sparkles className="w-24 h-24" />
-          </div>
-
-          <div className="flex flex-col items-center text-center relative z-10">
-            <div className="w-16 h-16 bg-white rounded-2xl shadow-md flex items-center justify-center mb-4 border border-indigo-50">
-              <Gamepad2 className="w-8 h-8 text-indigo-500 animate-pulse" />
-            </div>
-            
-            <h3 className="text-xl font-extrabold text-indigo-950 mb-2">Arena Bermain</h3>
-            <p className="text-sm font-bold text-indigo-600/80 leading-relaxed mb-4">
-              Ratusan mini-game seru sedang disiapkan. Kumpulkan Koin yang banyak dari tugas misi sekarang biar nanti bisa main sepuasnya!
-            </p>
-
-            <div className="inline-flex items-center space-x-2 bg-indigo-600 text-white px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-200">
-              <span>Segera Hadir</span>
-              <Sparkles className="w-4 h-4" />
-            </div>
-          </div>
+      {/* 4. BOTTOM PORTAL: The main CTA for games */}
+      <div className="flex-none px-6 z-10 w-full max-w-md mx-auto">
+        {/* Quick Motivation Status */}
+        <div className="mb-4 text-center">
+          <p className="text-[13px] font-bold text-blue-600/80 flex items-center justify-center gap-1.5">
+            <Flame className="w-4 h-4 text-orange-500" />
+            Selesaikan misi harian untuk main sepuasnya!
+          </p>
         </div>
 
+        {/* 3D Chunky Button for Game Arena */}
+        <button 
+          onClick={() => router.push("/child/games")}
+          className="w-full bg-indigo-500 hover:bg-indigo-400 text-white border-b-4 border-indigo-700 active:border-b-0 active:translate-y-1 rounded-[1.5rem] p-4 flex items-center justify-between transition-all shadow-lg shadow-indigo-200"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <Gamepad2 className="w-7 h-7 text-white" />
+            </div>
+            <div className="text-left">
+              <h3 className="text-xl font-black tracking-wide leading-none mb-1">ARENA BERMAIN</h3>
+              <p className="text-[11px] font-bold text-indigo-100 uppercase tracking-wider">Masuk ke Dunia Kido</p>
+            </div>
+          </div>
+          <div className="w-10 h-10 bg-indigo-400 rounded-full flex items-center justify-center shadow-inner">
+            <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+          </div>
+        </button>
       </div>
 
       <Navigation />
