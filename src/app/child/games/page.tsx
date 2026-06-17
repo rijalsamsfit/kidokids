@@ -43,8 +43,7 @@ export default function GameHub() {
           </div>
           <div>
             <h3 className="font-black text-slate-800 text-lg mb-1">Tebak Perasaan</h3>
-            <p className="text-xs font-bold text-slate-500 leading-relaxed mb-2">Latih empatimu dengan membantu teman-teman yang sedang sedih atau marah.</p>
-            <span className="inline-block bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase px-2 py-1 rounded-md">Pendidikan Karakter</span>
+            <p className="text-xs font-bold text-slate-500 leading-relaxed">Latih empatimu dengan membantu teman-teman yang sedang sedih atau marah.</p>
           </div>
         </button>
 

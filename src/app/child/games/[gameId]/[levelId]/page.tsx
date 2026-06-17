@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import GameShell from "@/components/GameShell";
 import { useGameStore } from "@/store/useGameStore";
-import { ThumbsUp, XCircle } from "lucide-react";
+import { ThumbsUp, XCircle, Loader2 } from "lucide-react";
 import { playSuccessSound, playErrorSound, playCoinSound } from "@/lib/soundEngine";
+import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // --- DATABASE LEVEL (Bisa dipindah ke Firebase nanti) ---
 const LEVEL_DATA: Record<string, any> = {
@@ -15,7 +17,6 @@ const LEVEL_DATA: Record<string, any> = {
     questions: [
       {
         id: 1,
-        // Menggunakan 3D Fluent Emoji dari Microsoft
         image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Loudly%20crying%20face/3D/loudly_crying_face_3d.png",
         situation: "Es krim temanmu jatuh ke tanah. Bagaimana perasaannya?",
         options: [
@@ -52,7 +53,8 @@ export default function EmotionLevel() {
   const router = useRouter();
   const params = useParams();
   const levelId = params.levelId as string;
-  const { addCoins } = useGameStore();
+  const gameId = params.gameId as string;
+  const { activeChildId, addCoins } = useGameStore();
   
   const levelData = LEVEL_DATA[levelId];
 
@@ -62,15 +64,50 @@ export default function EmotionLevel() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
 
+  // State Anti-Nuyul & Loading Firebase
+  const [isFirstWin, setIsFirstWin] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Cek ke Firebase apakah anak udah pernah namatin level ini
+  useEffect(() => {
+    const checkProgress = async () => {
+      if (!activeChildId) return;
+      try {
+        const snap = await getDoc(doc(db, "children", activeChildId));
+        if (snap.exists()) {
+          const progress = snap.data().gameProgress?.[gameId] || 0;
+          if (parseInt(levelId) <= progress) {
+            setIsFirstWin(false); // Ternyata udah pernah tamat!
+          }
+        }
+      } catch (error) {
+        console.error("Gagal cek progress:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkProgress();
+  }, [activeChildId, gameId, levelId]);
+
   // Jika level belum dibuat di database lokal kita
   if (!levelData) {
     return (
       <div className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-6 text-center">
         <h1 className="text-2xl font-black text-indigo-900 mb-4">Level Belum Tersedia!</h1>
         <p className="text-indigo-600 font-bold mb-8">Pahlawan, level ini sedang dibangun oleh tim Kido. Kembali lagi nanti ya!</p>
-        <button onClick={() => router.push("/child/games/emotion")} className="bg-indigo-500 text-white px-6 py-3 rounded-full font-black">
+        <button onClick={() => router.replace(`/child/games/${gameId}`)} className="bg-indigo-500 text-white px-6 py-3 rounded-full font-black">
           Kembali ke Peta
         </button>
+      </div>
+    );
+  }
+
+  // Loading Screen selagi nunggu data Firebase
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-6">
+        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+        <p className="font-bold text-indigo-600 animate-pulse">Menyiapkan Arena...</p>
       </div>
     );
   }
@@ -78,9 +115,9 @@ export default function EmotionLevel() {
   const currentQuestion = levelData.questions[currentStep];
   const maxScore = levelData.questions.length;
   
-  // Logika Hadiah: Lulus (Skor * 10), Gagal (Dapat 2 Koin partisipasi)
+  // LOGIKA KOIN: Lulus & Baru Pertama = Skor*10. Udah Pernah Lulus = 0 Koin. Gagal = 2 Koin Partisipasi.
   const isPassed = score >= levelData.passingScore;
-  const earnedCoins = isGameOver ? (isPassed ? score * 10 : 2) : 0;
+  const earnedCoins = isGameOver ? (isPassed ? (isFirstWin ? score * 10 : 0) : 2) : 0;
 
   const triggerHaptic = (type: "light" | "heavy") => {
     if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
@@ -115,13 +152,38 @@ export default function EmotionLevel() {
     }, 1500);
   };
 
-  const handleClaimReward = () => {
-    playCoinSound(); // Bunyi Koin gemerincing
-    addCoins(earnedCoins);
+  const handleClaimReward = async () => {
+    if (earnedCoins > 0) {
+      playCoinSound(); // Bunyi Koin gemerincing
+    }
+
+    if (activeChildId) {
+      try {
+        const childRef = doc(db, "children", activeChildId);
+        const updates: any = {};
+        
+        if (earnedCoins > 0) {
+          updates.coins = increment(earnedCoins);
+          addCoins(earnedCoins); // Update state lokal biar UI langsung bereaksi
+        }
+
+        // Kalau menang dan ini first win, buka gembok level berikutnya di database
+        if (isPassed && isFirstWin) {
+          updates[`gameProgress.${gameId}`] = parseInt(levelId);
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateDoc(childRef, updates);
+        }
+      } catch (error) {
+        console.error("Gagal simpan ke Firebase:", error);
+      }
+    }
     
     // Tunggu bunyi koin selesai sebentar baru pindah halaman
     setTimeout(() => {
-      router.push("/child/games/emotion");
+      // FIX: Gunakan replace agar layar bersih dan tidak numpuk
+      router.replace(`/child/games/${gameId}`);
     }, 400);
   };
 
