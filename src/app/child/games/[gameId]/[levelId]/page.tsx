@@ -8,46 +8,7 @@ import { ThumbsUp, XCircle, Loader2 } from "lucide-react";
 import { playSuccessSound, playErrorSound, playCoinSound } from "@/lib/soundEngine";
 import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-
-// --- DATABASE LEVEL (Bisa dipindah ke Firebase nanti) ---
-const LEVEL_DATA: Record<string, any> = {
-  "1": {
-    title: "Kenali Wajah (Level 1)",
-    passingScore: 2, // Harus benar minimal 2 buat lulus
-    questions: [
-      {
-        id: 1,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Loudly%20crying%20face/3D/loudly_crying_face_3d.png",
-        situation: "Es krim temanmu jatuh ke tanah. Bagaimana perasaannya?",
-        options: [
-          { id: "A", text: "Sedih", icon: "😭", isCorrect: true },
-          { id: "B", text: "Senang", icon: "😆", isCorrect: false },
-          { id: "C", text: "Takut", icon: "😨", isCorrect: false },
-        ]
-      },
-      {
-        id: 2,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Pleading%20face/3D/pleading_face_3d.png",
-        situation: "Adik tidak bisa mengambil mainan di atas meja.",
-        options: [
-          { id: "A", text: "Marah", icon: "😡", isCorrect: false },
-          { id: "B", text: "Minta Tolong", icon: "🥺", isCorrect: true },
-          { id: "C", text: "Tertawa", icon: "😂", isCorrect: false },
-        ]
-      },
-      {
-        id: 3,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Tired%20face/3D/tired_face_3d.png",
-        situation: "Ibu baru saja selesai membersihkan seluruh rumah.",
-        options: [
-          { id: "A", text: "Bersemangat", icon: "🤩", isCorrect: false },
-          { id: "B", text: "Lelah", icon: "😫", isCorrect: true },
-          { id: "C", text: "Kaget", icon: "😲", isCorrect: false },
-        ]
-      }
-    ]
-  }
-};
+import { EMOTION_LEVELS } from "@/data/emotionLevels"; // <-- KITA IMPORT DATANYA DARI SINI SEKARANG
 
 export default function EmotionLevel() {
   const router = useRouter();
@@ -56,7 +17,8 @@ export default function EmotionLevel() {
   const gameId = params.gameId as string;
   const { activeChildId, addCoins } = useGameStore();
   
-  const levelData = LEVEL_DATA[levelId];
+  // Ambil data level dari file terpisah yang baru kita bikin
+  const levelData = EMOTION_LEVELS[levelId];
 
   const [currentStep, setCurrentStep] = useState(0);
   const [score, setScore] = useState(0);
