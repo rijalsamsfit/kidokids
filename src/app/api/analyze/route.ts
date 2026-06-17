@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     `;
 
     // Panggil model Gemini yang cepat dan cerdas (Flash)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
