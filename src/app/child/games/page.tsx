@@ -1,0 +1,70 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { ChevronLeft, Heart, Zap, Lock, Gamepad2 } from "lucide-react";
+import { useGameStore } from "@/store/useGameStore";
+
+export default function GameHub() {
+  const router = useRouter();
+  const { coins } = useGameStore();
+
+  return (
+    <div className="min-h-screen bg-indigo-50 font-sans pb-10">
+      {/* Header */}
+      <div className="bg-indigo-600 p-6 rounded-b-[2rem] shadow-lg text-white sticky top-0 z-20">
+        <div className="flex items-center justify-between mb-2">
+          <button 
+            onClick={() => router.push("/child")}
+            className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm active:scale-90"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+          <div className="bg-amber-400 px-4 py-1.5 rounded-full border-2 border-amber-300 shadow-inner flex items-center gap-2">
+            <span className="font-black text-amber-900">{coins}</span>
+            <div className="w-5 h-5 bg-yellow-200 rounded-full flex items-center justify-center font-bold text-amber-600 text-xs">C</div>
+          </div>
+        </div>
+        <h1 className="text-2xl font-black flex items-center gap-2 mt-4">
+          <Gamepad2 className="w-6 h-6 text-indigo-200" /> Arena Bermain
+        </h1>
+        <p className="text-indigo-200 text-sm font-bold mt-1">Pilih petualanganmu hari ini!</p>
+      </div>
+
+      {/* Game List */}
+      <div className="p-6 space-y-4">
+        
+        {/* GAME 1: Tebak Perasaan (Aktif) */}
+        <button 
+          onClick={() => router.push("/child/games/emotion")}
+          className="w-full bg-white rounded-3xl p-4 border-b-4 border-indigo-200 hover:border-indigo-300 active:border-b-0 active:translate-y-1 transition-all shadow-sm flex items-center gap-4 text-left group"
+        >
+          <div className="w-20 h-20 bg-pink-100 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <Heart className="w-10 h-10 text-pink-500 fill-pink-500 animate-pulse" />
+          </div>
+          <div>
+            <h3 className="font-black text-slate-800 text-lg mb-1">Tebak Perasaan</h3>
+            <p className="text-xs font-bold text-slate-500 leading-relaxed mb-2">Latih empatimu dengan membantu teman-teman yang sedang sedih atau marah.</p>
+            <span className="inline-block bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase px-2 py-1 rounded-md">Pendidikan Karakter</span>
+          </div>
+        </button>
+
+        {/* GAME 2: Ninja Sehat (Terkunci/Segera Hadir) */}
+        <div className="w-full bg-slate-200/50 rounded-3xl p-4 border-2 border-slate-200 flex items-center gap-4 text-left opacity-75 grayscale relative overflow-hidden">
+          <div className="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+            <div className="bg-slate-800 text-white text-xs font-black px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
+              <Lock className="w-4 h-4" /> Segera Hadir
+            </div>
+          </div>
+          <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
+            <Zap className="w-10 h-10 text-blue-500 fill-blue-500" />
+          </div>
+          <div>
+            <h3 className="font-black text-slate-600 text-lg mb-1">Ninja Sehat</h3>
+            <p className="text-xs font-bold text-slate-500 leading-relaxed">Pilih makanan sehat dan hindari yang manis-manis untuk jadi ninja yang kuat!</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
