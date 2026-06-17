@@ -112,8 +112,8 @@ export default function ChildDashboard() {
     // 1. MAIN CONTAINER: Full screen, flex-col, no scroll, safe bottom padding
     <div className="h-[100dvh] bg-blue-50 font-sans relative flex flex-col overflow-hidden pb-24">
       
-      {isSleepMode && <LockScreen type="sleep" />}
-      {!isSleepMode && isTimeUp && <LockScreen type="timeUp" />}
+      {/* {isSleepMode && <LockScreen type="sleep" />} */}
+      {/* {!isSleepMode && isTimeUp && <LockScreen type="timeUp" />} */}
 
       {/* 2. TOP HUD: Fixed at the top */}
       <div className="flex-none bg-white p-4 rounded-b-3xl shadow-sm z-10 relative">
