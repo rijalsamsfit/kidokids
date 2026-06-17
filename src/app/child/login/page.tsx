@@ -9,6 +9,10 @@ import { useGameStore } from "@/store/useGameStore";
 
 export default function ChildLogin() {
   const router = useRouter();
+  
+  // ✅ Panggil fungsi setActiveChild dari Zustand untuk simpan data penuh
+  const setActiveChild = useGameStore((state) => state.setActiveChild);
+
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -65,12 +69,16 @@ export default function ChildLogin() {
     const correctPin = selectedChild.pin || "1234"; 
 
     if (enteredPin === correctPin) {
-      // SET STATE GLOBAL BAHWA ANAK INI YANG SEDANG MAIN
-      useGameStore.setState({ 
-        xp: selectedChild.xp || 0,
-        level: selectedChild.level || 1,
-        coins: selectedChild.coins || 0
-      });
+      // 🔥 PERBAIKAN: Gunakan setActiveChild untuk menyimpan SEMUA data, termasuk ID!
+      setActiveChild(
+        selectedChild.id,
+        selectedChild.name,
+        selectedChild.xp || 0,
+        selectedChild.level || 1,
+        selectedChild.coins || 0,
+        selectedChild.missionsCompleted || 0,
+        selectedChild.unlockedBadges || []
+      );
       
       // Lempar ke Dashboard Anak
       router.push("/child");
