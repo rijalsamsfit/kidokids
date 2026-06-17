@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Heart, Zap, Lock, Gamepad2 } from "lucide-react";
+import { ChevronLeft, Heart, Sparkles, Search, Lock, Gamepad2 } from "lucide-react";
 import { useGameStore } from "@/store/useGameStore";
 
 export default function GameHub() {
@@ -27,7 +27,7 @@ export default function GameHub() {
         <h1 className="text-2xl font-black flex items-center gap-2 mt-4">
           <Gamepad2 className="w-6 h-6 text-indigo-200" /> Arena Bermain
         </h1>
-        <p className="text-indigo-200 text-sm font-bold mt-1">Pilih petualanganmu hari ini!</p>
+        <p className="text-indigo-200 text-sm font-bold mt-1">Dunia 1: Rumah Bahagia</p>
       </div>
 
       {/* Game List */}
@@ -47,19 +47,35 @@ export default function GameHub() {
           </div>
         </button>
 
-        {/* GAME 2: Ninja Sehat (Terkunci/Segera Hadir) */}
+        {/* GAME 2: Kata Ajaib (Terkunci/Segera Hadir) */}
         <div className="w-full bg-slate-200/50 rounded-3xl p-4 border-2 border-slate-200 flex items-center gap-4 text-left opacity-75 grayscale relative overflow-hidden">
           <div className="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
             <div className="bg-slate-800 text-white text-xs font-black px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
               <Lock className="w-4 h-4" /> Segera Hadir
             </div>
           </div>
-          <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
-            <Zap className="w-10 h-10 text-blue-500 fill-blue-500" />
+          <div className="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center shrink-0">
+            <Sparkles className="w-10 h-10 text-amber-500 fill-amber-500" />
           </div>
           <div>
-            <h3 className="font-black text-slate-600 text-lg mb-1">Ninja Sehat</h3>
-            <p className="text-xs font-bold text-slate-500 leading-relaxed">Pilih makanan sehat dan hindari yang manis-manis untuk jadi ninja yang kuat!</p>
+            <h3 className="font-black text-slate-600 text-lg mb-1">Kata Ajaib</h3>
+            <p className="text-xs font-bold text-slate-500 leading-relaxed">Belajar mengucapkan Maaf, Tolong, dan Terima Kasih di saat yang tepat!</p>
+          </div>
+        </div>
+
+        {/* GAME 3: Detektif Kamar Rapi (Terkunci/Segera Hadir) */}
+        <div className="w-full bg-slate-200/50 rounded-3xl p-4 border-2 border-slate-200 flex items-center gap-4 text-left opacity-75 grayscale relative overflow-hidden">
+          <div className="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+            <div className="bg-slate-800 text-white text-xs font-black px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
+              <Lock className="w-4 h-4" /> Segera Hadir
+            </div>
+          </div>
+          <div className="w-20 h-20 bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0">
+            <Search className="w-10 h-10 text-emerald-500" />
+          </div>
+          <div>
+            <h3 className="font-black text-slate-600 text-lg mb-1">Detektif Kamar</h3>
+            <p className="text-xs font-bold text-slate-500 leading-relaxed">Ayo bantu kembalikan barang-barang yang berantakan ke tempat asalnya.</p>
           </div>
         </div>
 
