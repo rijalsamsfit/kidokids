@@ -11,27 +11,33 @@ import { Store, Coins, Gift, Sparkles, Lock, Loader2 } from "lucide-react";
 
 export default function ChildShop() {
   const router = useRouter();
-  // ✅ Tarik activeChildId, nama, dan koin langsung dari brankas Zustand
-  const { activeChildId, activeChildName, coins, addCoins } = useGameStore();
+  // ✅ PERBAIKAN: Tarik hasHydrated dari brankas Zustand
+  const { activeChildId, activeChildName, coins, addCoins, hasHydrated } = useGameStore();
 
   const [rewards, setRewards] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // ✅ KEAMANAN: Kalau belum login PIN, tendang ke luar
+    setMounted(true);
+
+    // ✅ GUARD 1: Tunggu sampai Zustand selesai membaca data dari HP
+    if (!hasHydrated) return;
+
+    // ✅ GUARD 2: Kalau sudah siap tapi gak ada PIN, tendang ke luar
     if (!activeChildId) {
       router.push("/child/login");
       return;
     }
 
     fetchShopData();
-  }, [activeChildId, router]);
+  }, [activeChildId, router, hasHydrated]); // ✅ Tambahkan hasHydrated ke dependency
 
   const fetchShopData = async () => {
     setIsLoading(true);
     try {
-      // ✅ Cuma butuh narik data etalase hadiah, karena data dompet udah ada di Zustand
+      // Cuma butuh narik data etalase hadiah, karena data dompet udah ada di Zustand
       const fetchedRewards = await getRewardsFromDB();
       setRewards(fetchedRewards);
       
@@ -91,7 +97,8 @@ export default function ChildShop() {
     }
   };
 
-  if (isLoading) {
+  // ✅ PERBAIKAN LOADING: Tahan layar jika belum mounted, belum hydrated, atau data toko belum siap
+  if (!mounted || !hasHydrated || isLoading) {
     return (
       <div className="min-h-screen bg-amber-50 flex flex-col items-center justify-center font-bold text-amber-500 gap-3">
         <Loader2 className="w-8 h-8 animate-spin" />

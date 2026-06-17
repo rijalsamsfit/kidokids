@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
 import { useGameStore } from "@/store/useGameStore";
-import { Trophy, Star, Shield, Flame, Lock, Medal, Award, Sparkles } from "lucide-react";
+// ✅ TAMBAHAN: Import Loader2 untuk efek loading
+import { Trophy, Star, Shield, Flame, Lock, Medal, Award, Sparkles, Loader2 } from "lucide-react";
 
 // MASTER DATA BADGE (ID harus sama dengan yang di missionService.ts)
 const MASTER_BADGES = [
@@ -49,19 +50,31 @@ const MASTER_BADGES = [
 export default function ChildBadges() {
   const router = useRouter();
   
-  // ✅ Tarik data unlockedBadges dari laci Zustand
-  const { activeChildId, activeChildName, unlockedBadges } = useGameStore();
+  // ✅ PERBAIKAN: Tarik hasHydrated dari laci Zustand
+  const { activeChildId, activeChildName, unlockedBadges, hasHydrated } = useGameStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    // ✅ KEAMANAN: Kalau belum masukin PIN, tendang ke luar
+    
+    // ✅ GUARD 1: Tunggu Hydration selesai
+    if (!hasHydrated) return;
+
+    // ✅ GUARD 2: KEAMANAN: Kalau belum masukin PIN, tendang ke luar
     if (!activeChildId) {
       router.push("/child/login");
     }
-  }, [activeChildId, router]);
+  }, [activeChildId, router, hasHydrated]); // ✅ Tambahkan hasHydrated
 
-  if (!mounted) return null; // Mencegah error hidrasi
+  // ✅ PERBAIKAN LOADING: Tahan UI sampai aman dengan loader yang seragam
+  if (!mounted || !hasHydrated) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <p className="font-bold text-indigo-500 animate-pulse">Membuka Lemari Trofi...</p>
+      </div>
+    );
+  }
 
   // Menghitung berapa badge yang sudah didapat
   const safeUnlockedBadges = unlockedBadges || [];
