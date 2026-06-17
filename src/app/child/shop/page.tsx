@@ -11,7 +11,8 @@ import { Store, Coins, Gift, Sparkles, Lock, Loader2 } from "lucide-react";
 
 export default function ChildShop() {
   const router = useRouter();
-  // ✅ PERBAIKAN: Tarik hasHydrated dari brankas Zustand
+  
+  // Tarik data dan status hidratasi dari brankas Zustand
   const { activeChildId, activeChildName, coins, addCoins, hasHydrated } = useGameStore();
 
   const [rewards, setRewards] = useState<any[]>([]);
@@ -22,26 +23,27 @@ export default function ChildShop() {
   useEffect(() => {
     setMounted(true);
 
-    // ✅ GUARD 1: Tunggu sampai Zustand selesai membaca data dari HP
+    // GUARD 1: Tunggu sampai Zustand selesai membaca data sesi anak dari memori HP
     if (!hasHydrated) return;
 
-    // ✅ GUARD 2: Kalau sudah siap tapi gak ada PIN, tendang ke luar
+    // GUARD 2: Kalau sudah siap tapi gak ada ID Anak, tendang ke luar (Layar PIN)
     if (!activeChildId) {
       router.push("/child/login");
       return;
     }
 
+    // Kalau semua aman, baru gelar lapak tokonya
     fetchShopData();
-  }, [activeChildId, router, hasHydrated]); // ✅ Tambahkan hasHydrated ke dependency
+  }, [activeChildId, router, hasHydrated]); 
 
   const fetchShopData = async () => {
     setIsLoading(true);
     try {
-      // Cuma butuh narik data etalase hadiah, karena data dompet udah ada di Zustand
+      // Narik data etalase hadiah
       const fetchedRewards = await getRewardsFromDB();
       setRewards(fetchedRewards);
       
-      // Opsional: Sinkronkan ulang koin dari database untuk memastikan akurasi
+      // Sinkronkan ulang koin dari database untuk memastikan akurasi
       const childRef = doc(db, "children", activeChildId!);
       const childSnap = await getDoc(childRef);
       if (childSnap.exists()) {
@@ -85,7 +87,7 @@ export default function ChildShop() {
         claimedAt: new Date().toISOString()
       });
 
-      // 3. Update koin di Zustand (otomatis layar langsung update)
+      // 3. Update koin di Zustand (otomatis layar langsung update tanpa refresh)
       addCoins(-reward.cost);
 
       alert(`🎉 Hore! Kamu berhasil menukarkan hadiah: ${reward.title}. Langsung kasih tau Ayah/Ibu ya buat minta hadiahnya!`);
@@ -97,12 +99,12 @@ export default function ChildShop() {
     }
   };
 
-  // ✅ PERBAIKAN LOADING: Tahan layar jika belum mounted, belum hydrated, atau data toko belum siap
+  // LAYAR LOADING UTAMA: Menahan UI jika Zustand belum selesai berpikir atau data lagi ditarik
   if (!mounted || !hasHydrated || isLoading) {
     return (
       <div className="min-h-screen bg-amber-50 flex flex-col items-center justify-center font-bold text-amber-500 gap-3">
         <Loader2 className="w-8 h-8 animate-spin" />
-        <p>Membuka Pintu Toko...</p>
+        <p className="animate-pulse">Membuka Pintu Toko Kido...</p>
       </div>
     );
   }
@@ -121,7 +123,7 @@ export default function ChildShop() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-black mb-1 tracking-tight flex items-center gap-2">
-                Toko Kido <Sparkles className="w-6 h-6 text-yellow-200 fill-yellow-200" />
+                Toko Kido <Sparkles className="w-6 h-6 text-yellow-200 fill-yellow-200 animate-pulse" />
               </h1>
               <p className="text-amber-100 text-sm font-bold">Tukarkan koinmu dengan hadiah seru!</p>
             </div>
@@ -133,7 +135,7 @@ export default function ChildShop() {
               <span className="text-amber-100 text-[11px] font-black uppercase tracking-wider mb-0.5">Dompet Koin</span>
               <span className="font-extrabold text-xl leading-tight capitalize">{activeChildName || "Pahlawan"}</span>
             </div>
-            <div className="bg-white px-4 py-2 rounded-xl shadow-sm flex items-center gap-2">
+            <div className="bg-white px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 transform transition-transform hover:scale-105 cursor-default">
               <Coins className="w-6 h-6 text-amber-500" />
               <span className="font-black text-2xl text-amber-600">{coins}</span>
             </div>

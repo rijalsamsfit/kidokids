@@ -6,26 +6,19 @@ import Navigation from "@/components/Navigation";
 import LockScreen from "@/components/LockScreen";
 import { useScreenTime } from "@/hooks/useScreenTime";
 import { useGameStore } from "@/store/useGameStore";
-import { submitMissionProofInDB } from "@/lib/missionService";
 import { db } from "@/lib/firebase"; 
-import { compressImage } from "@/utils/imageCompression";
-// ✅ TAMBAHAN: Import ikon LogOut
-import { Trophy, Coins, Star, Zap, CheckCircle, Target, Timer, Camera, Loader2, AlertCircle, LogOut } from "lucide-react"; 
+import { Trophy, Coins, Star, Zap, Timer, Loader2, LogOut, Gamepad2, Sparkles } from "lucide-react"; 
 import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
 export default function ChildDashboard() {
   const router = useRouter();
   
-  // ✅ TAMBAHAN: Tarik fungsi clearActiveChild dari Zustand
-  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, unlockedBadges, clearActiveChild } = useGameStore(); 
-  
+  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, clearActiveChild } = useGameStore(); 
   const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
 
   const [mounted, setMounted] = useState(false);
-  const [todayMissions, setTodayMissions] = useState<any[]>([]);
   const [cloudProfile, setCloudProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [showBadgeAlert, setShowBadgeAlert] = useState(false);
 
   const prevMissionsRef = useRef<any[]>([]);
@@ -71,6 +64,7 @@ export default function ChildDashboard() {
       }
     });
 
+    // Tetap pantau misi HANYA untuk ngasih Pop-Up Bonus Waktu kalau di-approve ortu
     const q = query(collection(db, "missions"), where("childId", "==", activeChildId));
     unsubMissions = onSnapshot(q, (snapshot) => {
       const missions: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -87,9 +81,6 @@ export default function ChildDashboard() {
       }
       
       prevMissionsRef.current = missions;
-
-      missions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setTodayMissions(missions);
       setIsLoading(false);
     });
 
@@ -99,28 +90,11 @@ export default function ChildDashboard() {
     };
   }, [activeChildId, router, grantBonusTime, hasHydrated]); 
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, missionId: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingId(missionId);
-    try {
-      const compressedFile = await compressImage(file);
-      await submitMissionProofInDB(missionId, compressedFile);
-      alert("Bukti foto berhasil dikirim! Tunggu Ayah/Bunda memeriksa ya! 🌟");
-    } catch (error) {
-      console.error("Upload eror:", error);
-      alert("Gagal mengunggah gambar bukti. Pastikan koneksi internet lancar dan coba lagi.");
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  // ✅ TAMBAHAN: Fungsi untuk Ganti Akun/Logout
+  // Fungsi untuk Ganti Akun/Logout
   const handleLogout = () => {
     if (window.confirm("Apakah kamu ingin keluar dan ganti Pahlawan?")) {
-      clearActiveChild(); // Hapus sesi dari Zustand
-      router.push("/child/login"); // Lempar balik ke layar PIN
+      clearActiveChild(); 
+      router.push("/child/login"); 
     }
   };
 
@@ -145,36 +119,41 @@ export default function ChildDashboard() {
       {isSleepMode && <LockScreen type="sleep" />}
       {!isSleepMode && isTimeUp && <LockScreen type="timeUp" />}
 
-      {/* Header Status Bar */}
-      <div className="bg-white p-4 rounded-b-3xl shadow-sm flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-100 p-2 rounded-xl">
-            <Trophy className="w-6 h-6 text-blue-600" />
+      {/* ✅ PERBAIKAN HEADER: Memaksa Screen Time Muncul di HP */}
+      <div className="bg-white p-4 rounded-b-3xl shadow-sm sticky top-0 z-10">
+        <div className="flex flex-col gap-3">
+          {/* Baris Atas: Level & Tombol Logout */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-100 p-2 rounded-xl">
+                <Trophy className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Level Kamu</p>
+                <p className="text-xl font-extrabold text-blue-700 leading-none">Level {level}</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleLogout}
+              className="flex items-center justify-center w-10 h-10 bg-rose-50 text-rose-500 rounded-full border border-rose-100 hover:bg-rose-500 hover:text-white transition-colors shadow-sm active:scale-90"
+              title="Ganti Pahlawan"
+            >
+              <LogOut className="w-5 h-5 ml-1" />
+            </button>
           </div>
-          <div>
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Level Kamu</p>
-            <p className="text-xl font-extrabold text-blue-700 leading-none">Level {level}</p>
+
+          {/* Baris Bawah: Waktu & Koin (Pasti muncul di HP) */}
+          <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100">
+            <div className="flex items-center space-x-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex-1 mr-2 justify-center">
+              <Timer className="w-4 h-4 text-slate-400" />
+              <span className="font-extrabold text-slate-600 text-sm tracking-widest">{formattedTime}</span>
+            </div>
+            <div className="flex items-center space-x-1.5 bg-amber-100 px-4 py-1.5 rounded-full border border-amber-200 shadow-inner">
+              <Coins className="w-5 h-5 text-amber-500" />
+              <span className="font-extrabold text-amber-700">{coins}</span>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 hidden sm:flex">
-            <Timer className="w-4 h-4 text-slate-400" />
-            <span className="font-extrabold text-slate-500 text-sm tracking-widest">{formattedTime}</span>
-          </div>
-          <div className="flex items-center space-x-1.5 bg-amber-100 px-3 py-1.5 rounded-full border border-amber-200 shadow-inner">
-            <Coins className="w-5 h-5 text-amber-500" />
-            <span className="font-extrabold text-amber-700">{coins}</span>
-          </div>
-          
-          {/* ✅ TAMBAHAN: Tombol Ganti Pahlawan */}
-          <button 
-            onClick={handleLogout}
-            className="flex items-center justify-center w-10 h-10 bg-rose-50 text-rose-500 rounded-full border border-rose-100 hover:bg-rose-500 hover:text-white transition-colors shadow-sm ml-1 active:scale-90"
-            title="Ganti Pahlawan"
-          >
-            <LogOut className="w-5 h-5 ml-1" />
-          </button>
         </div>
       </div>
 
@@ -209,92 +188,26 @@ export default function ChildDashboard() {
           </p>
         </div>
 
-        {/* Daftar Misi Hari Ini */}
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-extrabold text-slate-800 flex items-center">
-              <Target className="w-6 h-6 mr-2 text-rose-500" />
-              Misi Pahlawan Hari Ini
-            </h3>
+        {/* UI BARU: ARENA BERMAIN (Menggantikan Daftar Misi) */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-[2rem] border-2 border-indigo-100 shadow-sm">
+          <div className="absolute -top-4 -right-4 text-purple-200 opacity-50">
+            <Sparkles className="w-24 h-24" />
           </div>
-          
-          <div className="space-y-3">
-            {todayMissions.length === 0 && !isLoading && (
-              <p className="text-center text-slate-400 text-sm py-4 bg-white rounded-3xl border-2 border-slate-100">Belum ada misi hari ini. Hore istirahat!</p>
-            )}
 
-            {todayMissions.map((mission) => {
-              const isApproved = mission.status === 'approved';
-              const isCompleted = mission.status === 'completed'; 
-              const isDone = isApproved || isCompleted;
-              const isPendingApproval = mission.status === 'pending_approval';
-              const isRejected = mission.status === 'rejected';
+          <div className="flex flex-col items-center text-center relative z-10">
+            <div className="w-16 h-16 bg-white rounded-2xl shadow-md flex items-center justify-center mb-4 border border-indigo-50">
+              <Gamepad2 className="w-8 h-8 text-indigo-500 animate-pulse" />
+            </div>
+            
+            <h3 className="text-xl font-extrabold text-indigo-950 mb-2">Arena Bermain</h3>
+            <p className="text-sm font-bold text-indigo-600/80 leading-relaxed mb-4">
+              Ratusan mini-game seru sedang disiapkan. Kumpulkan Koin yang banyak dari tugas misi sekarang biar nanti bisa main sepuasnya!
+            </p>
 
-              return (
-                <div key={mission.id} className={`bg-white p-4 rounded-3xl border-2 shadow-sm flex items-center justify-between transition-all duration-300 ${isDone ? 'border-emerald-200 opacity-70' : isRejected ? 'border-rose-200' : 'border-slate-100'}`}>
-                  
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors ${
-                      isDone ? 'bg-emerald-50 border-emerald-100' : 
-                      isRejected ? 'bg-rose-50 border-rose-100' : 
-                      'bg-blue-50 border-blue-100'
-                    }`}>
-                      {isRejected ? (
-                        <AlertCircle className="w-7 h-7 text-rose-500" />
-                      ) : (
-                        <Zap className={`w-7 h-7 ${isDone ? 'text-emerald-400' : 'text-blue-500'}`} />
-                      )}
-                    </div>
-                    <div>
-                      <p className={`font-bold text-[15px] leading-tight transition-colors ${isDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                        {mission.title}
-                      </p>
-                      
-                      {isRejected ? (
-                        <p className="text-xs font-bold mt-1 text-rose-500">Misi ditolak, foto ulang!</p>
-                      ) : (
-                        <p className={`text-sm font-extrabold mt-1 ${isDone ? 'text-emerald-500' : 'text-amber-500'}`}>
-                          +{mission.xpReward || mission.xp} XP
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    {isPendingApproval ? (
-                      <span className="text-xs font-black bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full animate-pulse">
-                        Dicek Ortu
-                      </span>
-                    ) : isDone ? (
-                      <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center border-2 border-emerald-500">
-                        <CheckCircle className="w-7 h-7" />
-                      </div>
-                    ) : (
-                      <label className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all shadow-sm cursor-pointer active:scale-90 relative ${
-                        isRejected 
-                        ? 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white hover:border-rose-500' 
-                        : 'bg-blue-50 border-blue-200 text-blue-500 hover:bg-blue-500 hover:text-white hover:border-blue-500'
-                      }`}>
-                        {uploadingId === mission.id ? (
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                        ) : (
-                          <Camera className="w-6 h-6" />
-                        )}
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          capture="environment" 
-                          onChange={(e) => handleFileChange(e, mission.id)}
-                          disabled={uploadingId !== null}
-                          className="hidden" 
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                </div>
-              );
-            })}
+            <div className="inline-flex items-center space-x-2 bg-indigo-600 text-white px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-200">
+              <span>Segera Hadir</span>
+              <Sparkles className="w-4 h-4" />
+            </div>
           </div>
         </div>
 
