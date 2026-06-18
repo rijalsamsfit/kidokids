@@ -7,16 +7,23 @@ import { useGameStore } from "@/store/useGameStore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// --- DATABASE SEMENTARA (Akan dipindah ke Firestore nanti) ---
+// --- UPDATE: DAFTARKAN GAME KATA AJAIB DI SINI ---
 const GAME_DB: any = {
-  emotion: {
+  "emotion": {
     title: "Tebak Perasaan",
     description: "Latih empatimu dengan memahami perasaan orang lain.",
     theme: "from-pink-400 to-rose-500",
     totalLevels: 20,
     freeLevels: 5
   },
-  healthy: {
+  "magic-words": {
+    title: "Kata Ajaib",
+    description: "Belajar mengucapkan Maaf, Tolong, dan Terima Kasih di saat yang tepat!",
+    theme: "from-amber-400 to-orange-500",
+    totalLevels: 20,
+    freeLevels: 5
+  },
+  "healthy": {
     title: "Ninja Sehat",
     description: "Pilih makanan yang bikin tubuhmu kuat!",
     theme: "from-blue-400 to-emerald-500",

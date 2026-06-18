@@ -4,21 +4,30 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import GameShell from "@/components/GameShell";
 import { useGameStore } from "@/store/useGameStore";
-import { ThumbsUp, XCircle, Loader2 } from "lucide-react";
-import { playSuccessSound, playErrorSound, playCoinSound } from "@/lib/soundEngine";
+import { ThumbsUp, XCircle, Loader2, Volume2 } from "lucide-react"; // <-- UPDATE: Tambah icon Volume2
+import { playSuccessSound, playErrorSound, playCoinSound, pauseBGM, resumeBGM } from "@/lib/soundEngine";
 import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { EMOTION_LEVELS } from "@/data/emotionLevels"; // <-- KITA IMPORT DATANYA DARI SINI SEKARANG
 
-export default function EmotionLevel() {
+// --- UPDATE: IMPORT SEMUA DATA GAME DI SINI ---
+import { EMOTION_LEVELS } from "@/data/emotionLevels";
+import { MAGIC_WORDS_LEVELS } from "@/data/magicWordsLevels";
+
+// Mapping data berdasarkan gameId dari URL
+const ALL_GAME_DATA: Record<string, any> = {
+  "emotion": EMOTION_LEVELS,
+  "magic-words": MAGIC_WORDS_LEVELS,
+};
+
+export default function GameEngineLevel() {
   const router = useRouter();
   const params = useParams();
   const levelId = params.levelId as string;
   const gameId = params.gameId as string;
   const { activeChildId, addCoins } = useGameStore();
   
-  // Ambil data level dari file terpisah yang baru kita bikin
-  const levelData = EMOTION_LEVELS[levelId];
+  // --- UPDATE: Ambil data secara dinamis ---
+  const levelData = ALL_GAME_DATA[gameId]?.[levelId];
 
   const [currentStep, setCurrentStep] = useState(0);
   const [score, setScore] = useState(0);
@@ -54,9 +63,9 @@ export default function EmotionLevel() {
   // Jika level belum dibuat di database lokal kita
   if (!levelData) {
     return (
-      <div className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-6 text-center">
-        <h1 className="text-2xl font-black text-indigo-900 mb-4">Level Belum Tersedia!</h1>
-        <p className="text-indigo-600 font-bold mb-8">Pahlawan, level ini sedang dibangun oleh tim Kido. Kembali lagi nanti ya!</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-2xl font-black text-slate-900 mb-4">Level Belum Tersedia!</h1>
+        <p className="text-slate-600 font-bold mb-8">Pahlawan, level ini sedang dibangun oleh tim Kido. Kembali lagi nanti ya!</p>
         <button onClick={() => router.replace(`/child/games/${gameId}`)} className="bg-indigo-500 text-white px-6 py-3 rounded-full font-black">
           Kembali ke Peta
         </button>
@@ -67,9 +76,9 @@ export default function EmotionLevel() {
   // Loading Screen selagi nunggu data Firebase
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-        <p className="font-bold text-indigo-600 animate-pulse">Menyiapkan Arena...</p>
+        <p className="font-bold text-slate-600 animate-pulse">Menyiapkan Arena...</p>
       </div>
     );
   }
@@ -84,6 +93,28 @@ export default function EmotionLevel() {
   const triggerHaptic = (type: "light" | "heavy") => {
     if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(type === "light" ? 30 : [50, 50, 50]);
+    }
+  };
+
+  // --- UPDATE: FITUR TEXT-TO-SPEECH (Suara Robot) ---
+  const handlePlayAudio = () => {
+    if (typeof window !== "undefined" && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); 
+      const utterance = new SpeechSynthesisUtterance(currentQuestion.situation);
+      
+      // PAUSE MUSIK SAAT MULAI NGOMONG
+      utterance.onstart = () => {
+        pauseBGM();
+      };
+
+      // PLAY LAGI MUSIKNYA SAAT SELESAI NGOMONG
+      utterance.onend = () => {
+        resumeBGM();
+      };
+
+      utterance.lang = 'id-ID';
+      utterance.rate = 0.9; 
+      window.speechSynthesis.speak(utterance);
     }
   };
 
@@ -144,7 +175,6 @@ export default function EmotionLevel() {
     
     // Tunggu bunyi koin selesai sebentar baru pindah halaman
     setTimeout(() => {
-      // FIX: Gunakan replace agar layar bersih dan tidak numpuk
       router.replace(`/child/games/${gameId}`);
     }, 400);
   };
@@ -158,10 +188,10 @@ export default function EmotionLevel() {
       earnedCoins={earnedCoins}
       onClaimReward={handleClaimReward}
     >
-      <div className="flex flex-col h-full p-6 bg-indigo-50 relative overflow-y-auto pb-24">
+      <div className="flex flex-col h-full p-6 bg-slate-50 relative overflow-y-auto pb-24">
         
         {/* Progress Bar Sederhana */}
-        <div className="w-full bg-indigo-200 rounded-full h-3 mb-8 shadow-inner border border-indigo-100">
+        <div className="w-full bg-slate-200 rounded-full h-3 mb-8 shadow-inner border border-slate-300">
           <div 
             className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all duration-500 relative"
             style={{ width: `${((currentStep) / maxScore) * 100}%` }}
@@ -177,7 +207,7 @@ export default function EmotionLevel() {
             <div className="w-40 h-40 bg-white rounded-[2.5rem] shadow-xl flex items-center justify-center mb-6 relative animate-in zoom-in duration-500 border-4 border-white transform transition-transform hover:scale-105">
               <img 
                 src={currentQuestion.image} 
-                alt="Ekspresi" 
+                alt="Ilustrasi" 
                 className="w-32 h-32 object-contain drop-shadow-lg"
               />
               
@@ -198,8 +228,8 @@ export default function EmotionLevel() {
             </div>
 
             {/* Teks Situasi */}
-            <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-indigo-100 w-full text-center mb-8 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-slate-100 w-full text-center mb-6 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-700 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">
                 Pertanyaan {currentStep + 1}
               </div>
               <p className="text-slate-700 font-extrabold text-lg leading-relaxed mt-2">
@@ -207,11 +237,20 @@ export default function EmotionLevel() {
               </p>
             </div>
 
+            {/* --- UPDATE: Tombol Play Audio TTS --- */}
+            <button
+              onClick={handlePlayAudio}
+              className="w-full flex items-center justify-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 active:scale-95 px-6 py-4 rounded-2xl font-black mb-8 transition-all border-b-4 border-indigo-200 shadow-sm"
+            >
+              <Volume2 className="w-6 h-6" />
+              Dengarkan Cerita
+            </button>
+
             {/* Tombol Pilihan Jawaban */}
             <div className="w-full space-y-3">
               {currentQuestion.options.map((option: any) => {
                 const isSelected = selectedAnswer === option.id;
-                let btnStyle = "bg-white border-b-4 border-indigo-100 text-slate-700 hover:border-indigo-300";
+                let btnStyle = "bg-white border-b-4 border-slate-200 text-slate-700 hover:border-slate-300";
                 
                 if (showFeedback) {
                   if (option.isCorrect) btnStyle = "bg-emerald-50 border-b-4 border-emerald-500 text-emerald-800 scale-[1.02] shadow-md z-10 relative"; 

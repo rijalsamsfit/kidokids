@@ -1,7 +1,10 @@
 // src/lib/soundEngine.ts
 
-// Kita bikin instance AudioContext yang jalan di semua browser
+// Kita bikin instance AudioContext yang jalan di semua browser (Untuk SFX)
 let audioCtx: AudioContext | null = null;
+
+// Instance Audio untuk Background Music (BGM)
+let bgmAudio: HTMLAudioElement | null = null;
 
 const initAudio = () => {
   if (!audioCtx && typeof window !== "undefined") {
@@ -12,6 +15,45 @@ const initAudio = () => {
   }
   return audioCtx;
 };
+
+// --- 🎵 KONTROL BACKGROUND MUSIC (BGM) 🎵 ---
+
+export const playBGM = (audioUrl: string) => {
+  if (typeof window === "undefined") return;
+  
+  if (!bgmAudio) {
+    bgmAudio = new Audio(audioUrl);
+    bgmAudio.loop = true; // Musik akan berputar terus
+    bgmAudio.volume = 0.15; // Volume sangat pelan agar tidak mengganggu (15%)
+  } else if (bgmAudio.src !== audioUrl) {
+    bgmAudio.src = audioUrl; 
+  }
+  
+  // Browser butuh interaksi user (klik) sebelum ngebolehin audio jalan
+  bgmAudio.play().catch(e => console.log("BGM menunggu interaksi user...", e));
+};
+
+export const pauseBGM = () => {
+  if (bgmAudio && !bgmAudio.paused) {
+    bgmAudio.pause();
+  }
+};
+
+export const resumeBGM = () => {
+  if (bgmAudio && bgmAudio.paused) {
+    bgmAudio.play().catch(e => console.log("Gagal resume BGM", e));
+  }
+};
+
+export const stopBGM = () => {
+  if (bgmAudio) {
+    bgmAudio.pause();
+    bgmAudio.currentTime = 0;
+  }
+};
+
+
+// --- 🔊 KONTROL SOUND EFFECTS (SFX) 🔊 ---
 
 // 1. SUARA KOIN (Ting-ting tinggi)
 export const playCoinSound = () => {
