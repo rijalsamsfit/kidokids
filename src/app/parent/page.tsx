@@ -5,14 +5,18 @@ import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import { getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
 import { getChildrenProfiles } from "@/lib/childService";
+// ✅ IMPORT FUNGSI PENJAGA PINTU DARI PARENT SERVICE
+import { checkAndCreateParentProfile } from "@/lib/parentService"; 
 import { auth, db } from "@/lib/firebase"; 
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore"; 
-import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings, Gift, Check, User } from "lucide-react"; 
+import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings, Gift, Check, User, Crown } from "lucide-react"; 
 
 export default function ParentDashboard() {
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
   const [pendingRewards, setPendingRewards] = useState<any[]>([]); 
   const [childrenData, setChildrenData] = useState<any[]>([]);
+  // ✅ STATE BARU: Menyimpan kasta langganan orang tua
+  const [parentPlan, setParentPlan] = useState<"basic" | "pro" | "lifetime">("basic");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -30,6 +34,13 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
+      // ✅ 1. JALANKAN PENJAGA PINTU DULU: Cek & Bikin profil ortu kalau belum ada
+      const parentProfile = await checkAndCreateParentProfile();
+      if (parentProfile) {
+        setParentPlan(parentProfile.subscriptionPlan);
+      }
+
+      // 2. Tarik sisa data dasbor seperti biasa
       const [profiles, missions] = await Promise.all([
         getChildrenProfiles(),
         getMissionsFromDB()
@@ -92,7 +103,19 @@ export default function ParentDashboard() {
       <div className="bg-emerald-600 p-6 rounded-b-[2rem] shadow-md text-white">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-extrabold mb-1 tracking-tight">Dasbor Orang Tua</h1>
+            {/* ✅ UI BARU: Nampilin Badge Status Akun Ortu */}
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-2xl font-extrabold tracking-tight">Dasbor Orang Tua</h1>
+              {parentPlan === "pro" || parentPlan === "lifetime" ? (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-yellow-950 text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm">
+                  <Crown className="w-3 h-3" /> VIP
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-emerald-800 text-emerald-100 text-[10px] font-black rounded-md uppercase tracking-wider shadow-inner border border-emerald-700">
+                  BASIC
+                </span>
+              )}
+            </div>
             <p className="text-emerald-100 text-sm font-medium">Pantau kehebatan anak-anak hari ini</p>
           </div>
           <Link 
@@ -199,7 +222,6 @@ export default function ParentDashboard() {
             )}
             
             {pendingMissions.map((mission) => {
-              // ✅ UPDATE: Cari data anak yang punya misi ini
               const assignedChild = childrenData.find(child => child.id === mission.childId);
               const childName = assignedChild ? assignedChild.name : "Anak";
 
@@ -213,7 +235,6 @@ export default function ParentDashboard() {
                       <div>
                         <p className="font-bold text-slate-800 text-[15px] leading-tight">{mission.title}</p>
                         
-                        {/* ✅ UPDATE: Badge Nama Anak */}
                         <div className="mt-1 mb-1">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[10px] font-extrabold tracking-wide border border-blue-100 capitalize">
                             <User className="w-3 h-3" /> {childName}
