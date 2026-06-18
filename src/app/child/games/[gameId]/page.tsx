@@ -7,7 +7,7 @@ import { useGameStore } from "@/store/useGameStore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// --- UPDATE: DAFTARKAN GAME KATA AJAIB DI SINI ---
+// --- UPDATE: DAFTARKAN GAME DETEKTIF KAMAR DI SINI ---
 const GAME_DB: any = {
   "emotion": {
     title: "Tebak Perasaan",
@@ -21,6 +21,13 @@ const GAME_DB: any = {
     description: "Belajar mengucapkan Maaf, Tolong, dan Terima Kasih di saat yang tepat!",
     theme: "from-amber-400 to-orange-500",
     totalLevels: 20,
+    freeLevels: 5
+  },
+  "detective": {
+    title: "Detektif Kamar",
+    description: "Ayo bantu kembalikan barang-barang yang berantakan ke tempat asalnya.",
+    theme: "from-teal-400 to-emerald-500",
+    totalLevels: 5,
     freeLevels: 5
   },
   "healthy": {
@@ -73,7 +80,7 @@ export default function LevelMap() {
     return <div className="p-10 text-center font-bold">Game tidak ditemukan!</div>;
   }
 
-  // Generate Array Level 1-20
+  // Generate Array Level sesuai totalLevels
   const levels = Array.from({ length: gameInfo.totalLevels }, (_, i) => i + 1);
 
   return (
