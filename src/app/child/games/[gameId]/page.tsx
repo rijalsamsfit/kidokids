@@ -27,7 +27,7 @@ const GAME_DB: any = {
     title: "Detektif Kamar",
     description: "Ayo bantu kembalikan barang-barang yang berantakan ke tempat asalnya.",
     theme: "from-teal-400 to-emerald-500",
-    totalLevels: 5,
+    totalLevels: 20, // <-- UPDATE: Diubah dari 5 menjadi 20 agar gembok VIP muncul!
     freeLevels: 5
   },
   "healthy": {

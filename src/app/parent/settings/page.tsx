@@ -108,7 +108,7 @@ export default function SettingsPage() {
     try {
       // NOTE: Fungsi createChildProfile di lib/childService.ts harus di-update nanti biar nerima parameter umur!
       // Untuk sementara, kita kirim nama dan PIN dulu agar tidak error.
-      await createChildProfile(newChildName, newChildPin); 
+      await createChildProfile(newChildName, newChildPin, newChildAge); 
       alert(`🎉 Profil ${newChildName} berhasil dibuat!`);
       setIsAddChildOpen(false);
       setNewChildName("");
