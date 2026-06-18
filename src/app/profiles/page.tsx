@@ -69,7 +69,7 @@ export default function ProfileSelector() {
     );
     
     // Terbang ke Lobi Game Anak
-    router.push("/child/games"); 
+    router.push("/child"); 
   };
 
   // 3. Logika Validasi PIN Orang Tua
