@@ -3,17 +3,22 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+// ✅ UPDATE: Tambahkan doc dan getDoc untuk narik kasta Ortu
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { ArrowLeft, User, Lock, Delete, Loader2 } from "lucide-react";
 import { useGameStore } from "@/store/useGameStore";
+
+// ✅ UPDATE: Samakan definisi tipe PlanType
+type PlanType = "basic" | "pro" | "annual" | "lifetime";
 
 export default function ChildLogin() {
   const router = useRouter();
   
-  // ✅ Panggil fungsi setActiveChild dari Zustand untuk simpan data penuh
   const setActiveChild = useGameStore((state) => state.setActiveChild);
 
   const [childrenData, setChildrenData] = useState<any[]>([]);
+  // ✅ STATE BARU: Menyimpan kasta orang tua untuk dititipkan ke anak
+  const [parentPlan, setParentPlan] = useState<PlanType>("basic");
   const [isLoading, setIsLoading] = useState(true);
   
   // State untuk alur login PIN
@@ -25,8 +30,15 @@ export default function ChildLogin() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        // Tarik data anak-anak yang terhubung dengan akun Google orang tua ini
         try {
+          // ✅ 1. Tarik Data Kasta Orang Tua Dulu
+          const parentRef = doc(db, "parents", user.uid);
+          const parentSnap = await getDoc(parentRef);
+          if (parentSnap.exists()) {
+            setParentPlan(parentSnap.data().subscriptionPlan as PlanType || "basic");
+          }
+
+          // 2. Tarik data anak-anak yang terhubung
           const q = query(collection(db, "children"), where("parentId", "==", user.uid));
           const querySnapshot = await getDocs(q);
           const childrenList = querySnapshot.docs.map(doc => ({
@@ -35,7 +47,7 @@ export default function ChildLogin() {
           }));
           setChildrenData(childrenList);
         } catch (error) {
-          console.error("Gagal menarik data anak:", error);
+          console.error("Gagal menarik data:", error);
         }
       }
       setIsLoading(false);
@@ -69,7 +81,7 @@ export default function ChildLogin() {
     const correctPin = selectedChild.pin || "1234"; 
 
     if (enteredPin === correctPin) {
-      // 🔥 PERBAIKAN: Gunakan setActiveChild untuk menyimpan SEMUA data, termasuk ID!
+      // 🔥 PERBAIKAN: Titipkan parentPlan ke dalam memori anak!
       setActiveChild(
         selectedChild.id,
         selectedChild.name,
@@ -77,7 +89,8 @@ export default function ChildLogin() {
         selectedChild.level || 1,
         selectedChild.coins || 0,
         selectedChild.missionsCompleted || 0,
-        selectedChild.unlockedBadges || []
+        selectedChild.unlockedBadges || [],
+        parentPlan // ✅ Kunci VIP diserahkan di sini
       );
       
       // Lempar ke Dashboard Anak

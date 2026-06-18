@@ -7,7 +7,7 @@ import { useGameStore } from "@/store/useGameStore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// --- UPDATE: DAFTARKAN GAME DETEKTIF KAMAR DI SINI ---
+// --- DAFTARKAN GAME DI SINI ---
 const GAME_DB: any = {
   "emotion": {
     title: "Tebak Perasaan",
@@ -27,7 +27,7 @@ const GAME_DB: any = {
     title: "Detektif Kamar",
     description: "Ayo bantu kembalikan barang-barang yang berantakan ke tempat asalnya.",
     theme: "from-teal-400 to-emerald-500",
-    totalLevels: 20, // <-- UPDATE: Diubah dari 5 menjadi 20 agar gembok VIP muncul!
+    totalLevels: 20, 
     freeLevels: 5
   },
   "healthy": {
@@ -45,7 +45,9 @@ export default function LevelMap() {
   const gameId = params.gameId as string;
   const gameInfo = GAME_DB[gameId];
 
-  const { activeChildId } = useGameStore();
+  // ✅ UPDATE: Tarik parentPlan (Kunci VIP) dari ransel Zustand si anak
+  const { activeChildId, parentPlan } = useGameStore();
+  
   const [currentProgressLevel, setCurrentProgressLevel] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -73,8 +75,9 @@ export default function LevelMap() {
     fetchProgress();
   }, [activeChildId, gameId]);
 
-  // Simulasi Status User (Nanti ditarik dari Auth/Firestore ortu)
-  const isPremium = false; 
+  // ✅ UPDATE: Logika Dinamis Penentu Premium (Tidak lagi di-hardcode)
+  // Selama bukan "basic", berarti anak ini punya akses Premium (Pro/Tahunan/Lifetime)
+  const isPremium = parentPlan !== "basic"; 
 
   if (!gameInfo) {
     return <div className="p-10 text-center font-bold">Game tidak ditemukan!</div>;

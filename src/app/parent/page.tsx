@@ -5,18 +5,21 @@ import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import { getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
 import { getChildrenProfiles } from "@/lib/childService";
-// ✅ IMPORT FUNGSI PENJAGA PINTU DARI PARENT SERVICE
 import { checkAndCreateParentProfile } from "@/lib/parentService"; 
 import { auth, db } from "@/lib/firebase"; 
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore"; 
 import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings, Gift, Check, User, Crown } from "lucide-react"; 
 
+// ✅ UPDATE: Menambahkan 'annual' ke dalam definisi tipe
+type PlanType = "basic" | "pro" | "annual" | "lifetime";
+
 export default function ParentDashboard() {
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
   const [pendingRewards, setPendingRewards] = useState<any[]>([]); 
   const [childrenData, setChildrenData] = useState<any[]>([]);
-  // ✅ STATE BARU: Menyimpan kasta langganan orang tua
-  const [parentPlan, setParentPlan] = useState<"basic" | "pro" | "lifetime">("basic");
+  
+  // ✅ UPDATE: Menggunakan tipe PlanType yang baru
+  const [parentPlan, setParentPlan] = useState<PlanType>("basic");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -34,10 +37,10 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // ✅ 1. JALANKAN PENJAGA PINTU DULU: Cek & Bikin profil ortu kalau belum ada
+      // 1. JALANKAN PENJAGA PINTU DULU: Cek & Bikin profil ortu kalau belum ada
       const parentProfile = await checkAndCreateParentProfile();
       if (parentProfile) {
-        setParentPlan(parentProfile.subscriptionPlan);
+        setParentPlan(parentProfile.subscriptionPlan as PlanType);
       }
 
       // 2. Tarik sisa data dasbor seperti biasa
@@ -103,12 +106,13 @@ export default function ParentDashboard() {
       <div className="bg-emerald-600 p-6 rounded-b-[2rem] shadow-md text-white">
         <div className="flex justify-between items-start">
           <div>
-            {/* ✅ UI BARU: Nampilin Badge Status Akun Ortu */}
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-2xl font-extrabold tracking-tight">Dasbor Orang Tua</h1>
-              {parentPlan === "pro" || parentPlan === "lifetime" ? (
+              {/* ✅ UPDATE: Logika Badge disesuaikan untuk 4 Kasta */}
+              {parentPlan !== "basic" ? (
                 <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-yellow-950 text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm">
-                  <Crown className="w-3 h-3" /> VIP
+                  <Crown className="w-3 h-3" /> 
+                  {parentPlan === "lifetime" ? "VIP" : parentPlan === "annual" ? "TAHUNAN" : "PRO"}
                 </span>
               ) : (
                 <span className="px-2 py-0.5 bg-emerald-800 text-emerald-100 text-[10px] font-black rounded-md uppercase tracking-wider shadow-inner border border-emerald-700">

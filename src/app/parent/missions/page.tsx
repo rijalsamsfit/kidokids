@@ -1,15 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation"; // ✅ IMPORT ROUTER BUAT ARAHIN KE KASIR
 import Navigation from "@/components/Navigation";
 import MissionForm from "@/components/MissionForm";
 import { addMissionToDB, getMissionsFromDB } from "@/lib/missionService";
+import { checkAndCreateParentProfile } from "@/lib/parentService"; // ✅ IMPORT PENJAGA PINTU
 import { auth } from "@/lib/firebase";
 import { Plus, ClipboardList, Target, Clock, CheckCircle2, AlertCircle, Loader2, Zap } from "lucide-react";
 
+// ✅ DEFINE TIPE KASTA TERBARU (SAMA KAYAK DI DASBOR & BILLING)
+type PlanType = "basic" | "pro" | "annual" | "lifetime";
+
 export default function ParentMissionsPage() {
+  const router = useRouter(); // Inisialisasi router
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [allMissions, setAllMissions] = useState<any[]>([]);
+  const [parentPlan, setParentPlan] = useState<PlanType>("basic"); // ✅ STATE KASTA ORTU
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +33,13 @@ export default function ParentMissionsPage() {
   const fetchMissions = async () => {
     setIsLoading(true);
     try {
+      // ✅ 1. Cek Kasta Ortu Dulu
+      const parentProfile = await checkAndCreateParentProfile();
+      if (parentProfile) {
+        setParentPlan(parentProfile.subscriptionPlan as PlanType);
+      }
+
+      // 2. Tarik Daftar Misi
       const missions = await getMissionsFromDB();
       setAllMissions(missions);
     } catch (error) {
@@ -35,12 +49,38 @@ export default function ParentMissionsPage() {
     }
   };
 
+  // ✅ 3. FUNGSI SATPAM PAYWALL (INTERCEPTOR)
+  const handleOpenForm = () => {
+    // Kalau dia kasta BASIC, kita audit dulu misinya
+    if (parentPlan === "basic") {
+      // Hitung misi yang statusnya belum selesai (pending / pending_approval)
+      const hangingMissions = allMissions.filter(
+        (m) => m.status === "pending" || m.status === "pending_approval"
+      ).length;
+
+      // Jika misi menggantung sudah 3 atau lebih, blokir!
+      if (hangingMissions >= 3) {
+        const wantsToUpgrade = window.confirm(
+          "Batas Misi Gratis Habis! 🚨\n\nAnakmu masih punya 3 misi yang belum selesai. Selesaikan misi lama dulu, atau Upgrade ke KIDO Premium untuk membuat misi tanpa batas!\n\nMau lihat paket Premium sekarang?"
+        );
+        
+        // Kalau Ortu klik 'OK', langsung giring ke kasir
+        if (wantsToUpgrade) {
+          router.push("/parent/billing");
+        }
+        return; // Hentikan eksekusi, form gagal kebuka
+      }
+    }
+
+    // Jika kasta Premium (Pro/Annual/Lifetime) ATAU misi menggantung < 3, buka form!
+    setIsFormOpen(true);
+  };
+
   const handleAddMission = async (newMission: any) => {
     try {
-      // ✅ Menambahkan newMission.childId ke fungsi addMissionToDB
       await addMissionToDB(newMission.title, newMission.xp, newMission.time, newMission.isFavorite, newMission.childId);
-      fetchMissions(); // Refresh daftar misi
-      setIsFormOpen(false); // Tutup form
+      fetchMissions(); 
+      setIsFormOpen(false); 
       alert("Misi berhasil dibuat dan dikirim ke anak!");
     } catch (error) {
       alert("Gagal menyimpan misi, pastikan koneksi internetmu lancar!");
@@ -74,9 +114,9 @@ export default function ParentMissionsPage() {
 
       <div className="p-6 space-y-6">
         
-        {/* TOMBOL BUAT MISI RAKSASA */}
+        {/* ✅ TOMBOL BUAT MISI RAKSASA (MEMAKAI FUNGSI SATPAM) */}
         <button 
-          onClick={() => setIsFormOpen(true)}
+          onClick={handleOpenForm}
           className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white p-5 rounded-2xl font-black text-lg shadow-xl shadow-slate-200 transition-all active:scale-95"
         >
           <Plus className="w-6 h-6" />

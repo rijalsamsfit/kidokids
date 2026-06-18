@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// ✅ UPDATE: Import tipe PlanType agar seragam
+type PlanType = "basic" | "pro" | "annual" | "lifetime";
+
 // Mendefinisikan tipe data untuk State Game KIDO
 interface GameState {
   activeChildId: string | null;
@@ -10,16 +13,20 @@ interface GameState {
   coins: number;
   streak: number;
   
-  // ✅ TAMBAHAN: Laci baru untuk sistem Lemari Trofi
+  // Laci untuk sistem Lemari Trofi
   missionsCompleted: number;
   unlockedBadges: string[];
 
-  // ✅ TAMBAHAN: Hydration Guard
+  // ✅ TAMBAHAN: Laci untuk menyimpan kasta orang tua
+  parentPlan: PlanType;
+
+  // Hydration Guard
   hasHydrated: boolean;
   
   // Fungsi-fungsi (Actions)
   setHasHydrated: (state: boolean) => void;
-  setActiveChild: (id: string, name: string, xp: number, level: number, coins: number, missionsCompleted?: number, unlockedBadges?: string[]) => void;
+  // ✅ UPDATE: setActiveChild sekarang menerima parentPlan
+  setActiveChild: (id: string, name: string, xp: number, level: number, coins: number, missionsCompleted?: number, unlockedBadges?: string[], parentPlan?: PlanType) => void;
   clearActiveChild: () => void;
   addXP: (amount: number) => void;
   addCoins: (amount: number) => void;
@@ -38,22 +45,24 @@ export const useGameStore = create<GameState>()(
       level: 1,
       coins: 0,
       streak: 0,
-      missionsCompleted: 0, // ✅ Awal mula misi 0
-      unlockedBadges: [],   // ✅ Awal mula lemari kosong
-      hasHydrated: false,   // ✅ Awal mula status hidratasi false
+      missionsCompleted: 0,
+      unlockedBadges: [],
+      parentPlan: "basic", // ✅ Nilai awal default selalu basic
+      hasHydrated: false, 
 
-      // ✅ Setter untuk status hidratasi
+      // Setter untuk status hidratasi
       setHasHydrated: (state) => set({ hasHydrated: state }),
 
-      // Saat anak sukses login pakai PIN, simpan identitasnya
-      setActiveChild: (id, name, xp, level, coins, missionsCompleted = 0, unlockedBadges = []) => set({
+      // ✅ UPDATE: Menyimpan kasta orang tua saat anak login
+      setActiveChild: (id, name, xp, level, coins, missionsCompleted = 0, unlockedBadges = [], parentPlan = "basic") => set({
         activeChildId: id,
         activeChildName: name,
         xp: xp || 0,
         level: level || 1,
         coins: coins || 0,
         missionsCompleted: missionsCompleted || 0,
-        unlockedBadges: unlockedBadges || []
+        unlockedBadges: unlockedBadges || [],
+        parentPlan: parentPlan
       }),
 
       // Saat anak logout / kembali ke layar pilih profil
@@ -65,7 +74,8 @@ export const useGameStore = create<GameState>()(
         coins: 0,
         streak: 0,
         missionsCompleted: 0,
-        unlockedBadges: []
+        unlockedBadges: [],
+        parentPlan: "basic" // ✅ Reset kembali ke basic saat logout
       }),
 
       // Fungsi untuk menambah XP dan mengecek kenaikan level otomatis
@@ -100,13 +110,14 @@ export const useGameStore = create<GameState>()(
         coins: 0, 
         streak: 0,
         missionsCompleted: 0,
-        unlockedBadges: []
+        unlockedBadges: [],
+        parentPlan: "basic"
       }),
     }),
     {
       // Nama key yang akan tersimpan di Local Storage HP/Browser
       name: 'kido-game-storage',
-      // ✅ Logika Hydration Guard: Set true setelah storage berhasil dibaca
+      // Logika Hydration Guard: Set true setelah storage berhasil dibaca
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       }
