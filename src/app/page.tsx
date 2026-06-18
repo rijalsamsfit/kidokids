@@ -1,8 +1,42 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck, Heart, Target, Clock, ArrowRight, Star } from "lucide-react";
+import { ShieldCheck, Heart, Target, Clock, ArrowRight, Star, Loader2 } from "lucide-react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function LandingPage() {
+  const router = useRouter();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // LOGIKA PENJAGA GERBANG
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // JIKA SUDAH LOGIN, LEMPAR OTOMATIS KE LAYAR PROFIL (NETFLIX STYLE)
+        router.replace("/profiles");
+      } else {
+        // JIKA BELUM LOGIN, TAMPILKAN HALAMAN PENAWARAN
+        setIsCheckingAuth(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  // Layar tunggu sejenak saat mengecek status login
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+        <p className="font-bold text-slate-500 animate-pulse">Memeriksa tiket masuk...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans overflow-x-hidden selection:bg-blue-200">
       

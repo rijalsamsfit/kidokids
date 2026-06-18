@@ -1,11 +1,13 @@
+// src/lib/childService.ts
+
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc, query, where } from "firebase/firestore";
 import { db, auth } from "./firebase";
 
 /**
  * 1. Membuat Profil Anak Baru 
- * ✅ Update: Menambahkan field default untuk Jam Tidur & Limit Layar
+ * ✅ Update: Menambahkan parameter UMUR (age) untuk logika pemisahan game
  */
-export const createChildProfile = async (name: string, pin: string) => {
+export const createChildProfile = async (name: string, pin: string, age: string) => {
   try {
     const user = auth.currentUser;
     if (!user) throw new Error("Harus login sebagai orang tua");
@@ -13,6 +15,7 @@ export const createChildProfile = async (name: string, pin: string) => {
     const childData = {
       name,
       pin, 
+      age: parseInt(age, 10),  // Konversi teks dropdown menjadi format Angka di Database
       level: 1,
       xp: 0,
       coins: 0,
@@ -91,7 +94,7 @@ export const updateChildProgressInDB = async (childId: string, newXp: number, ne
 };
 
 /**
- * 5. BARU: Update PIN Anak
+ * 5. Update PIN Anak
  * Wajib mengecek apakah user yang login adalah parent sebelum bisa ubah PIN
  */
 export const updateChildPin = async (childId: string, newPin: string) => {
@@ -109,7 +112,7 @@ export const updateChildPin = async (childId: string, newPin: string) => {
 };
 
 /**
- * 6. BARU: Update Pengaturan (Jam Tidur & Limit)
+ * 6. Update Pengaturan (Jam Tidur & Limit)
  */
 export const updateChildSettings = async (childId: string, settings: { sleepTime?: string, screenTimeLimit?: number }) => {
   try {

@@ -30,7 +30,8 @@ export default function ChildDashboard() {
     if (!hasHydrated) return;
 
     if (!activeChildId) {
-      router.push("/child/login");
+      // ✅ UPDATE: Arahkan ke Layar Pemilihan Profil (Netflix Style)
+      router.replace("/profiles");
       return;
     }
 
@@ -86,10 +87,12 @@ export default function ChildDashboard() {
     };
   }, [activeChildId, router, grantBonusTime, hasHydrated]); 
 
+  // ✅ UPDATE: Logika Logout Ganti Pemain
   const handleLogout = () => {
     if (window.confirm("Apakah kamu ingin keluar dan ganti Pahlawan?")) {
       clearActiveChild(); 
-      router.push("/child/login"); 
+      // Lempar kembali ke Layar Pemilihan Profil (Netflix Style)
+      router.replace("/profiles"); 
     }
   };
 

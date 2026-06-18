@@ -22,9 +22,8 @@ export default function LoginPage() {
       const user = result.user;
       console.log(`Berhasil login! Selamat datang, ${user.displayName}`);
 
-      // Setelah sukses login, langsung arahkan ke dasbor orang tua
-      // (Nanti di Fase 3, kita bisa selipin logika untuk redirect ke /setup-profile kalau dia user baru)
-      router.push("/parent");
+      // UPDATE: Setelah sukses login, arahkan ke Layar Profil (Netflix Style)
+      router.replace("/profiles");
     } catch (error: any) {
       console.error("Gagal login:", error);
       alert(`Oops, gagal login: ${error.message}. Pastikan popup tidak diblokir browser ya!`);
@@ -32,10 +31,14 @@ export default function LoginPage() {
     }
   };
 
-  // Fungsi Masuk KHUSUS Anak (Player) TANPA otentikasi Google
+  // Fungsi Masuk KHUSUS Anak
   const handleChildEntrance = () => {
-    // Langsung arahkan ke halaman pilih profil anak (Fase 3 nanti)
-    router.push("/child/login");
+    // UPDATE: Logika ala Netflix. Kalau belum ada akun Google yg nyangkut, anak gak bisa masuk.
+    if (auth.currentUser) {
+      router.push("/profiles");
+    } else {
+      alert("Pahlawan kecil, minta tolong Ayah atau Ibu untuk Masuk pakai Google dulu ya buat buka pintunya!");
+    }
   };
 
   return (
@@ -73,7 +76,7 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-4">
-          {/* Tombol Masuk Anak (Tanpa Google Auth) */}
+          {/* Tombol Masuk Anak */}
           <button
             onClick={handleChildEntrance}
             disabled={isLoading}

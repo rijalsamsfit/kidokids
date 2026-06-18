@@ -47,21 +47,19 @@ export default function GameHub() {
           </div>
         </button>
 
-        {/* GAME 2: Kata Ajaib (Terkunci/Segera Hadir) */}
-        <div className="w-full bg-slate-200/50 rounded-3xl p-4 border-2 border-slate-200 flex items-center gap-4 text-left opacity-75 grayscale relative overflow-hidden">
-          <div className="absolute inset-0 bg-slate-100/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
-            <div className="bg-slate-800 text-white text-xs font-black px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
-              <Lock className="w-4 h-4" /> Segera Hadir
-            </div>
-          </div>
-          <div className="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center shrink-0">
-            <Sparkles className="w-10 h-10 text-amber-500 fill-amber-500" />
+        {/* GAME 2: Kata Ajaib (SEKARANG SUDAH AKTIF!) */}
+        <button 
+          onClick={() => router.push("/child/games/magic-words")}
+          className="w-full bg-white rounded-3xl p-4 border-b-4 border-indigo-200 hover:border-indigo-300 active:border-b-0 active:translate-y-1 transition-all shadow-sm flex items-center gap-4 text-left group"
+        >
+          <div className="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <Sparkles className="w-10 h-10 text-amber-500 fill-amber-500 animate-pulse" />
           </div>
           <div>
-            <h3 className="font-black text-slate-600 text-lg mb-1">Kata Ajaib</h3>
+            <h3 className="font-black text-slate-800 text-lg mb-1">Kata Ajaib</h3>
             <p className="text-xs font-bold text-slate-500 leading-relaxed">Belajar mengucapkan Maaf, Tolong, dan Terima Kasih di saat yang tepat!</p>
           </div>
-        </div>
+        </button>
 
         {/* GAME 3: Detektif Kamar Rapi (Terkunci/Segera Hadir) */}
         <div className="w-full bg-slate-200/50 rounded-3xl p-4 border-2 border-slate-200 flex items-center gap-4 text-left opacity-75 grayscale relative overflow-hidden">

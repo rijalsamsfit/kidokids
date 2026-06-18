@@ -12,7 +12,8 @@ import {
 } from "@/lib/childService";
 import { 
   ArrowLeft, Users, UserPlus, Eye, EyeOff, Clock, Moon, 
-  ShieldCheck, CreditCard, LogOut, X, Loader2, ChevronRight, Settings 
+  ShieldCheck, CreditCard, LogOut, X, Loader2, ChevronRight, Settings,
+  Tv // <-- Update icon tambahan untuk layar profil
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,9 +25,12 @@ export default function SettingsPage() {
   
   const [visiblePins, setVisiblePins] = useState<{ [key: string]: boolean }>({});
   const [isAddChildOpen, setIsAddChildOpen] = useState(false);
+  
+  // --- UPDATE PENTING UNTUK LOGIKA UMUR ANAK ---
   const [newChildName, setNewChildName] = useState("");
   const [newChildPin, setNewChildPin] = useState("");
-  
+  const [newChildAge, setNewChildAge] = useState<string>(""); 
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeChild, setActiveChild] = useState<any>(null);
   const [settingType, setSettingType] = useState<"screenTime" | "sleepTime" | "pin" | null>(null);
@@ -96,17 +100,20 @@ export default function SettingsPage() {
 
   const handleAddChild = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newChildName.trim() || newChildPin.length !== 4) {
-      alert("Nama harus diisi dan PIN harus 4 digit angka!");
+    if (!newChildName.trim() || newChildPin.length !== 4 || !newChildAge) {
+      alert("Nama, Umur, dan PIN 4 digit harus diisi!");
       return;
     }
     setIsSubmitting(true);
     try {
-      await createChildProfile(newChildName, newChildPin);
+      // NOTE: Fungsi createChildProfile di lib/childService.ts harus di-update nanti biar nerima parameter umur!
+      // Untuk sementara, kita kirim nama dan PIN dulu agar tidak error.
+      await createChildProfile(newChildName, newChildPin); 
       alert(`🎉 Profil ${newChildName} berhasil dibuat!`);
       setIsAddChildOpen(false);
       setNewChildName("");
       setNewChildPin("");
+      setNewChildAge("");
       fetchChildren();
     } catch (error) {
       alert("Gagal menambahkan anak.");
@@ -159,7 +166,9 @@ export default function SettingsPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-800 text-[15px]">{child.name}</p>
-                          <p className="text-xs text-slate-500 font-semibold mt-0.5">Level {child.level || 1}</p>
+                          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                            Level {child.level || 1} • {child.age || "?"} Tahun
+                          </p>
                         </div>
                       </div>
                       <button onClick={() => togglePinVisibility(child.id)} className="text-slate-400 flex items-center gap-2">
@@ -199,9 +208,23 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <button onClick={handleLogout} className="w-full p-4 bg-rose-50 text-rose-600 font-bold rounded-2xl border border-rose-100 flex items-center justify-center space-x-2">
-          <LogOut className="w-5 h-5" /> <span>Keluar Akun</span>
-        </button>
+        {/* --- UPDATE: TOMBOL GANTI PROFIL (NETFLIX STYLE) --- */}
+        <section className="space-y-3 pt-4 border-t border-slate-200">
+          <button 
+            onClick={() => router.push("/profiles")} 
+            className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl border border-indigo-800 flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+          >
+            <Tv className="w-5 h-5" /> <span>Ganti Profil / Area Anak</span>
+          </button>
+
+          <button 
+            onClick={handleLogout} 
+            className="w-full p-4 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-2xl border border-rose-200 flex items-center justify-center space-x-2 transition-all active:scale-95"
+          >
+            <LogOut className="w-5 h-5" /> <span>Keluar dari Google</span>
+          </button>
+        </section>
+
       </div>
 
       {/* ✅ MODAL SETTINGS (READABLE) */}
@@ -232,7 +255,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* MODAL TAMBAH ANAK */}
+      {/* MODAL TAMBAH ANAK (DENGAN LOGIKA UMUR) */}
       {isAddChildOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
             <div className="bg-white w-full sm:w-[400px] rounded-t-[2rem] sm:rounded-3xl p-6 shadow-2xl">
@@ -241,9 +264,46 @@ export default function SettingsPage() {
                 <button onClick={() => setIsAddChildOpen(false)} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"><X className="w-5 h-5" /></button>
               </div>
               <form onSubmit={handleAddChild} className="space-y-4">
-                <input type="text" value={newChildName} onChange={(e) => setNewChildName(e.target.value)} placeholder="Nama Anak" className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-bold" required />
-                <input type="text" pattern="[0-9]*" maxLength={4} value={newChildPin} onChange={(e) => setNewChildPin(e.target.value.replace(/[^0-9]/g, ''))} placeholder="PIN (4 Digit)" className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-bold" required />
-                <button type="submit" disabled={isSubmitting} className="w-full p-4 bg-blue-600 text-white rounded-2xl font-bold">{isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Buat Profil"}</button>
+                <input 
+                  type="text" 
+                  value={newChildName} 
+                  onChange={(e) => setNewChildName(e.target.value)} 
+                  placeholder="Nama Panggilan" 
+                  className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-bold outline-none focus:border-blue-500" 
+                  required 
+                />
+                
+                {/* --- INPUT UMUR --- */}
+                <select
+                  value={newChildAge}
+                  onChange={(e) => setNewChildAge(e.target.value)}
+                  className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-bold outline-none focus:border-blue-500 appearance-none"
+                  required
+                >
+                  <option value="" disabled>Pilih Umur Anak...</option>
+                  <option value="4">4 Tahun (Rumah Bahagia)</option>
+                  <option value="5">5 Tahun (Rumah Bahagia)</option>
+                  <option value="6">6 Tahun (Rumah Bahagia)</option>
+                  <option value="7">7 Tahun (Rumah Bahagia)</option>
+                  <option value="8">8 Tahun (Akademi Hebat)</option>
+                  <option value="9">9 Tahun (Akademi Hebat)</option>
+                  <option value="10">10 Tahun (Akademi Hebat)</option>
+                </select>
+
+                <input 
+                  type="text" 
+                  pattern="[0-9]*" 
+                  maxLength={4} 
+                  value={newChildPin} 
+                  onChange={(e) => setNewChildPin(e.target.value.replace(/[^0-9]/g, ''))} 
+                  placeholder="PIN Masuk (4 Angka)" 
+                  className="w-full p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-bold tracking-widest outline-none focus:border-blue-500" 
+                  required 
+                />
+                
+                <button type="submit" disabled={isSubmitting} className="w-full p-4 bg-blue-600 text-white rounded-2xl font-bold flex justify-center items-center mt-2">
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Buat Profil Anak"}
+                </button>
               </form>
             </div>
         </div>
