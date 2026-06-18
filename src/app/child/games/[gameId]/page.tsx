@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ChevronLeft, Lock, Star } from "lucide-react";
+import { ChevronLeft, Lock, Star, X, Sparkles } from "lucide-react";
 import { useGameStore } from "@/store/useGameStore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -34,6 +34,9 @@ export default function LevelMap() {
   const { activeChildId } = useGameStore();
   const [currentProgressLevel, setCurrentProgressLevel] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // State untuk mengontrol Pop-Up Premium
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   // Tarik data progress anak dari Firebase
   useEffect(() => {
@@ -73,7 +76,7 @@ export default function LevelMap() {
       <div className="p-6 sticky top-0 z-20 bg-black/10 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => router.replace("/child/games")} // FIX: Pakai replace agar history rapi
+            onClick={() => router.replace("/child/games")}
             className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors active:scale-90"
           >
             <ChevronLeft className="w-6 h-6 text-white" />
@@ -93,9 +96,10 @@ export default function LevelMap() {
           <div className="grid grid-cols-3 gap-6">
             {levels.map((levelNum) => {
               const isLockedByPremium = !isPremium && levelNum > gameInfo.freeLevels;
-              const isLockedByProgress = levelNum > currentProgressLevel && !isLockedByPremium;
               const isPlayable = levelNum <= currentProgressLevel && !isLockedByPremium;
               const isCompleted = levelNum < currentProgressLevel;
+              // Kunci Progress hanya berlaku jika levelnya gratis TAPI belum sampai
+              const isLockedByProgress = levelNum > currentProgressLevel && !isLockedByPremium;
 
               // Styling Dinamis berdasarkan Status Level
               let btnStyle = "bg-white text-slate-300 border-b-4 border-slate-200"; // Default (Kunci Progress)
@@ -105,8 +109,15 @@ export default function LevelMap() {
               return (
                 <div key={levelNum} className="flex flex-col items-center gap-2">
                   <button
-                    disabled={isLockedByPremium || isLockedByProgress}
-                    onClick={() => router.push(`/child/games/${gameId}/${levelNum}`)}
+                    // Jangan disable jika dikunci premium, agar bisa memunculkan Pop-Up
+                    disabled={isLockedByProgress}
+                    onClick={() => {
+                      if (isLockedByPremium) {
+                        setShowPremiumModal(true); // Panggil Pop-Up
+                      } else {
+                        router.push(`/child/games/${gameId}/${levelNum}`); // Masuk ke Level
+                      }
+                    }}
                     className={`w-20 h-20 rounded-3xl flex items-center justify-center transition-all ${btnStyle} relative overflow-hidden group`}
                   >
                     {isPlayable && (
@@ -116,7 +127,7 @@ export default function LevelMap() {
                       </>
                     )}
 
-                    {isLockedByProgress && !isLockedByPremium && (
+                    {isLockedByProgress && (
                       <div className="text-2xl font-black text-slate-300">{levelNum}</div>
                     )}
 
@@ -143,6 +154,42 @@ export default function LevelMap() {
           </div>
         )}
       </div>
+
+      {/* MODAL VIP PESTER POWER */}
+      {showPremiumModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300 relative border-4 border-indigo-100">
+            {/* Tombol Tutup X */}
+            <button
+              onClick={() => setShowPremiumModal(false)}
+              className="absolute top-4 right-4 w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Ikon Gembok Besar */}
+            <div className="w-24 h-24 bg-gradient-to-br from-amber-200 to-amber-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-300/50">
+              <Lock className="w-12 h-12 text-amber-800" />
+            </div>
+
+            {/* Teks Pesan */}
+            <h2 className="text-2xl font-black text-slate-800 text-center mb-3">
+              Level VIP Dikunci!
+            </h2>
+            <p className="text-slate-500 font-bold text-center leading-relaxed mb-8 text-lg">
+              Wah, petualangan ini masih digembok! Minta tolong Ayah atau Ibu buat membukanya ya! <Sparkles className="w-5 h-5 inline-block text-amber-500 ml-1"/>
+            </p>
+
+            {/* Tombol Oke */}
+            <button
+              onClick={() => setShowPremiumModal(false)}
+              className="w-full bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 font-black text-xl py-4 rounded-2xl active:scale-95 transition-all shadow-lg shadow-amber-500/30 border-b-4 border-amber-600"
+            >
+              Oke, Mengerti!
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
