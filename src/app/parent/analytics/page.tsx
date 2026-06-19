@@ -8,17 +8,17 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
 import { 
   Brain, Sparkles, Loader2, User, ChevronRight, AlertCircle, Bot, 
-  Lock, Calendar, Trophy, Coins, BarChart3, Crown 
+  Lock, Calendar, Trophy, Coins, BarChart3, Crown, UserPlus
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
-// ✅ UPDATE 1: Import Ransel Zustand Ortu
+// ✅ Import Ransel Zustand Ortu
 import { useParentStore } from "@/store/useParentStore";
 
 export default function ParentAnalytics() {
   const router = useRouter();
   
-  // ✅ UPDATE 2: Tarik kasta Ortu dan fungsi fetch dari Zustand
+  // ✅ Tarik kasta Ortu dan fungsi fetch dari Zustand
   const { parentPlan, fetchParentData, isPlanLoading } = useParentStore();
 
   const [childrenData, setChildrenData] = useState<any[]>([]);
@@ -38,7 +38,7 @@ export default function ParentAnalytics() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        // ✅ UPDATE 3: Panggil Zustand untuk kasta Ortu
+        // Panggil Zustand untuk kasta Ortu
         fetchParentData();
 
         try {
@@ -135,14 +135,12 @@ export default function ParentAnalytics() {
     fetchChildData();
   }, [selectedChild]);
 
-  // ✅ UPDATE 4: Engine Kalkulasi Hak Akses (Basic = Lock, VIP = Cek Cooldown)
+  // Engine Kalkulasi Hak Akses (Basic = Lock, VIP = Cek Cooldown)
   const checkAccess = () => {
-    // Kalau kasta Basic, gembok total
     if (parentPlan === "basic") {
       return { isLocked: true, type: "premium_required", daysLeft: 0 };
     }
 
-    // Kalau VIP, cek apakah ada cooldown 7 hari
     if (!lastAnalysisDate) return { isLocked: false, type: "none", daysLeft: 0 };
 
     const now = new Date();
@@ -161,7 +159,6 @@ export default function ParentAnalytics() {
 
   // 3. Eksekusi Gemini
   const handleAnalyze = async () => {
-    // Kalau Basic maksa ngeklik (jika tembus), lempar ke kasir
     if (access.type === "premium_required") {
       router.push("/parent/billing");
       return;
@@ -225,7 +222,6 @@ export default function ParentAnalytics() {
     }
   };
 
-  // ✅ UPDATE 5: Sinkronisasi loading Auth dan Zustand
   if (isLoadingAuth || isPlanLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -253,188 +249,225 @@ export default function ParentAnalytics() {
 
       <div className="p-6 space-y-6">
         
-        {/* PILIH ANAK */}
-        {childrenData.length > 0 && (
-          <div>
-            <h2 className="text-sm font-black text-slate-500 uppercase tracking-wider mb-3">Pilih Profil Anak</h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {childrenData.map((child) => (
-                <button
-                  key={child.id}
-                  onClick={() => setSelectedChild(child)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 whitespace-nowrap transition-all active:scale-95 ${
-                    selectedChild?.id === child.id 
-                      ? "bg-purple-50 border-purple-500 text-purple-700 shadow-sm" 
-                      : "bg-white border-slate-200 text-slate-600 hover:border-purple-200"
-                  }`}
-                >
-                  <div className={`p-1.5 rounded-full ${selectedChild?.id === child.id ? "bg-purple-200" : "bg-slate-100"}`}>
-                    <User className="w-5 h-5" />
-                  </div>
-                  <span className="font-extrabold capitalize">{child.name}</span>
-                </button>
-              ))}
+        {/* 🛑 EMPTY STATE 1: BELUM ADA ANAK SAMA SEKALI */}
+        {childrenData.length === 0 ? (
+          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm text-center flex flex-col items-center justify-center mt-6 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-5 border-2 border-indigo-100">
+              <UserPlus className="w-10 h-10 text-indigo-400" />
             </div>
-          </div>
-        )}
-
-        {isLoadingData ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-3">
-            <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-            <p className="text-slate-500 font-bold text-sm">Menarik data dari database...</p>
+            <h3 className="font-black text-slate-800 text-xl mb-2">Pangkalan Masih Sepi!</h3>
+            <p className="text-slate-500 text-sm mb-8 leading-relaxed px-2">
+              Yuk, rekrut pahlawan kecilmu terlebih dahulu di menu Pengaturan untuk memulai petualangan karakter dan membuka Analisis AI.
+            </p>
+            <button 
+              onClick={() => router.push('/parent/settings')} 
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
+            >
+              Tambah Pahlawan Sekarang
+            </button>
           </div>
         ) : (
-          selectedChild && (
-            <>
-              {/* UI KOTAK RINGKASAN */}
-              <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in duration-300">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-                  <div className="p-3 bg-amber-100 rounded-xl text-amber-600">
-                    <Trophy className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-slate-500 text-xs font-bold uppercase">Misi Selesai</p>
-                    <p className="text-2xl font-black text-slate-800">{stats.completedMissions}</p>
-                  </div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-xl text-blue-600">
-                    <Coins className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-slate-500 text-xs font-bold uppercase">Total Koin</p>
-                    <p className="text-2xl font-black text-slate-800">{stats.totalXP}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* GRAFIK AKTIVITAS 7 HARI TERAKHIR */}
-              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
-                <div className="flex items-center gap-2 mb-4">
-                  <BarChart3 className="w-5 h-5 text-purple-500" />
-                  <h3 className="font-black text-slate-800">Aktivitas 7 Hari Terakhir</h3>
-                </div>
-                
-                <div className="h-48 w-full">
-                  {chartData.length > 0 ? (
-                    <ProgressChart data={chartData} />
-                  ) : (
-                    <div className="h-full bg-slate-50 rounded-xl border border-dashed border-slate-300 flex items-center justify-center">
-                      <p className="text-slate-400 font-bold text-sm">Belum ada data misi minggu ini</p>
+          <>
+            {/* PILIH ANAK */}
+            <div>
+              <h2 className="text-sm font-black text-slate-500 uppercase tracking-wider mb-3">Pilih Profil Anak</h2>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {childrenData.map((child) => (
+                  <button
+                    key={child.id}
+                    onClick={() => setSelectedChild(child)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 whitespace-nowrap transition-all active:scale-95 ${
+                      selectedChild?.id === child.id 
+                        ? "bg-purple-50 border-purple-500 text-purple-700 shadow-sm" 
+                        : "bg-white border-slate-200 text-slate-600 hover:border-purple-200"
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-full ${selectedChild?.id === child.id ? "bg-purple-200" : "bg-slate-100"}`}>
+                      <User className="w-5 h-5" />
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* AREA KONSULTASI AI */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
-                
-                {/* 🔒 UPDATE 6: EFEK BLUR KASTA BASIC */}
-                {access.type === "premium_required" && (
-                  <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                    <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-lg border-2 border-amber-200">
-                      <Lock className="w-8 h-8" />
-                    </div>
-                    <h3 className="font-black text-slate-800 text-xl mb-2">Laporan VIP Terkunci</h3>
-                    <p className="text-slate-600 font-bold text-sm mb-6">Upgrade ke KIDO Premium untuk membuka analisis karakter berbasis AI mingguan.</p>
-                    
-                    <button
-                      onClick={() => router.push("/parent/billing")}
-                      className="w-full max-w-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-300 transition-all active:scale-95"
-                    >
-                      <Crown className="w-5 h-5" /> Buka Kunci VIP
-                    </button>
-                  </div>
-                )}
-
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Bot className="w-8 h-8 text-purple-600" />
-                </div>
-                <h3 className="font-black text-slate-800 text-xl mb-2">Konsultasi Aktivitas {selectedChild.name}</h3>
-                <p className="text-slate-500 text-sm mb-6 px-4">
-                  AI akan membaca rekam jejak misi {selectedChild.name} untuk memberikan saran parenting yang tepat sasaran.
-                </p>
-
-                {/* BANNER EDUKASI COOLDOWN */}
-                {access.type === "cooldown" && (
-                  <div className="mb-6 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start space-x-3 text-left">
-                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-amber-900">Kuotasi Evaluasi Mingguan</span>
-                      <span className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                        AI butuh waktu merekam perkembangan konsistensi anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{access.daysLeft} hari lagi</strong>.
-                      </span>
-                    </div>
-                  </div>
-                )}
-                
-                {/* TOMBOL ANALISIS */}
-                <button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing || access.isLocked}
-                  className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all ${
-                    access.isLocked 
-                      ? "bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed" 
-                      : isAnalyzing
-                        ? "bg-purple-400 text-white cursor-not-allowed"
-                        : "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200 active:scale-95"
-                  }`}
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                      Membaca Jurnal...
-                    </>
-                  ) : access.type === "cooldown" ? (
-                    <>
-                      <Lock className="w-5 h-5" />
-                      Terkunci ({access.daysLeft} Hari)
-                    </>
-                  ) : (
-                    <>
-                      Mulai Analisis <ChevronRight className="w-6 h-6" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </>
-          )
-        )}
-
-        {/* PESAN EROR */}
-        {errorMsg && (
-          <div className="bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl flex items-start gap-3">
-            <AlertCircle className="w-6 h-6 text-rose-500 shrink-0 mt-0.5" />
-            <p className="text-rose-700 font-bold text-sm">{errorMsg}</p>
-          </div>
-        )}
-
-        {/* KARTU HASIL ANALISIS */}
-        {analysisResult && (
-          <div className="animate-in fade-in slide-in-from-bottom-8 duration-500">
-            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-1 rounded-3xl shadow-lg">
-              <div className="bg-white p-6 rounded-[22px] h-full">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                  <div className="p-2 bg-purple-100 rounded-xl">
-                    <Sparkles className="w-6 h-6 text-purple-600 fill-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-slate-800 text-lg">Catatan Asisten</h3>
-                    <div className="flex items-center gap-1 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                      <Calendar className="w-3 h-3" />
-                      {lastAnalysisDate ? new Date(lastAnalysisDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Hari Ini'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="prose prose-slate max-w-none prose-p:font-semibold prose-p:text-slate-800 prose-headings:font-black prose-headings:text-slate-900 prose-strong:text-purple-700 prose-strong:font-black prose-li:font-semibold prose-li:text-slate-800 prose-p:leading-relaxed">
-                  <ReactMarkdown>{analysisResult}</ReactMarkdown>
-                </div>
+                    <span className="font-extrabold capitalize">{child.name}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
-        )}
 
+            {isLoadingData ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                <p className="text-slate-500 font-bold text-sm">Menarik data dari database...</p>
+              </div>
+            ) : (
+              selectedChild && (
+                <>
+                  {/* UI KOTAK RINGKASAN */}
+                  <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in duration-300">
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                      <div className="p-3 bg-amber-100 rounded-xl text-amber-600">
+                        <Trophy className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-wider">Misi Selesai</p>
+                        <p className="text-2xl font-black text-slate-800">{stats.completedMissions}</p>
+                      </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+                      <div className="p-3 bg-blue-100 rounded-xl text-blue-600">
+                        <Coins className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-wider">Total Koin</p>
+                        <p className="text-2xl font-black text-slate-800">{stats.totalXP}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GRAFIK AKTIVITAS 7 HARI TERAKHIR */}
+                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+                    <div className="flex items-center gap-2 mb-4">
+                      <BarChart3 className="w-5 h-5 text-purple-500" />
+                      <h3 className="font-black text-slate-800">Aktivitas 7 Hari Terakhir</h3>
+                    </div>
+                    
+                    <div className="h-48 w-full">
+                      {chartData.some(d => d.missions > 0) ? (
+                        <ProgressChart data={chartData} />
+                      ) : (
+                        <div className="h-full bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-4 text-center">
+                          <p className="text-slate-400 font-bold text-sm">Belum ada misi selesai minggu ini</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 🛑 EMPTY STATE 2: BELUM ADA MISI SELESAI SAMA SEKALI UNTUK DIANALISIS */}
+                  {stats.completedMissions === 0 && !analysisResult ? (
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                      <div className="w-20 h-20 bg-slate-50 border-2 border-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 animate-bounce shadow-sm">
+                        <Bot className="w-10 h-10 text-slate-400" />
+                      </div>
+                      <h3 className="font-black text-slate-800 text-xl mb-2">Bip-bop! Data Belum Cukup</h3>
+                      <p className="text-slate-500 text-sm mb-8 leading-relaxed px-2">
+                        Robot AI belum punya bahan untuk berpikir. AI membutuhkan setidaknya beberapa misi yang diselesaikan oleh <strong>{selectedChild.name}</strong> untuk mulai menyusun laporan analisis karakter.
+                      </p>
+                      <button
+                        onClick={() => router.push("/parent")}
+                        className="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 font-black py-4 rounded-2xl flex items-center justify-center border-2 border-slate-200 transition-all active:scale-95"
+                      >
+                        Buat Misi Pertama
+                      </button>
+                    </div>
+                  ) : (
+                    /* AREA KONSULTASI AI (Tampil Jika Sudah Ada Data) */
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                      
+                      {/* EFEK BLUR KASTA BASIC */}
+                      {access.type === "premium_required" && (
+                        <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                          <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-lg border-2 border-amber-200">
+                            <Lock className="w-8 h-8" />
+                          </div>
+                          <h3 className="font-black text-slate-800 text-xl mb-2">Laporan VIP Terkunci</h3>
+                          <p className="text-slate-600 font-bold text-sm mb-6">Upgrade ke KIDO Premium untuk membuka analisis karakter berbasis AI mingguan.</p>
+                          
+                          <button
+                            onClick={() => router.push("/parent/billing")}
+                            className="w-full max-w-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-300 transition-all active:scale-95"
+                          >
+                            <Crown className="w-5 h-5" /> Buka Kunci VIP
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Bot className="w-8 h-8 text-purple-600" />
+                      </div>
+                      <h3 className="font-black text-slate-800 text-xl mb-2">Konsultasi Aktivitas {selectedChild.name}</h3>
+                      <p className="text-slate-500 text-sm mb-6 px-4">
+                        AI akan membaca rekam jejak misi {selectedChild.name} untuk memberikan saran parenting yang tepat sasaran.
+                      </p>
+
+                      {/* BANNER EDUKASI COOLDOWN */}
+                      {access.type === "cooldown" && (
+                        <div className="mb-6 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start space-x-3 text-left">
+                          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-amber-900">Kuota Evaluasi Mingguan</span>
+                            <span className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                              AI butuh waktu merekam perkembangan konsistensi anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{access.daysLeft} hari lagi</strong>.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* TOMBOL ANALISIS */}
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing || access.isLocked}
+                        className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all ${
+                          access.isLocked 
+                            ? "bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed" 
+                            : isAnalyzing
+                              ? "bg-purple-400 text-white cursor-not-allowed"
+                              : "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200 active:scale-95"
+                        }`}
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                            Membaca Jurnal...
+                          </>
+                        ) : access.type === "cooldown" ? (
+                          <>
+                            <Lock className="w-5 h-5" />
+                            Terkunci ({access.daysLeft} Hari)
+                          </>
+                        ) : (
+                          <>
+                            Mulai Analisis <ChevronRight className="w-6 h-6" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* PESAN EROR */}
+                  {errorMsg && (
+                    <div className="bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl flex items-start gap-3 mt-6">
+                      <AlertCircle className="w-6 h-6 text-rose-500 shrink-0 mt-0.5" />
+                      <p className="text-rose-700 font-bold text-sm">{errorMsg}</p>
+                    </div>
+                  )}
+
+                  {/* KARTU HASIL ANALISIS */}
+                  {analysisResult && (
+                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 mt-6">
+                      <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-1 rounded-3xl shadow-lg">
+                        <div className="bg-white p-6 rounded-[22px] h-full">
+                          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                            <div className="p-2 bg-purple-100 rounded-xl">
+                              <Sparkles className="w-6 h-6 text-purple-600 fill-purple-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-black text-slate-800 text-lg">Catatan Asisten</h3>
+                              <div className="flex items-center gap-1 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                <Calendar className="w-3 h-3" />
+                                {lastAnalysisDate ? new Date(lastAnalysisDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Hari Ini'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="prose prose-slate max-w-none prose-p:font-semibold prose-p:text-slate-800 prose-headings:font-black prose-headings:text-slate-900 prose-strong:text-purple-700 prose-strong:font-black prose-li:font-semibold prose-li:text-slate-800 prose-p:leading-relaxed">
+                            <ReactMarkdown>{analysisResult}</ReactMarkdown>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            )}
+          </>
+        )}
       </div>
 
       <Navigation />
