@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ShieldCheck, Sparkles, LogIn, ArrowRight } from "lucide-react";
-import { auth } from "@/lib/firebase"; 
+import { auth, db } from "@/lib/firebase"; // ✅ UPDATE: Tambah db
+import { doc, getDoc } from "firebase/firestore"; // ✅ UPDATE: Import getDoc
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 export default function LoginPage() {
@@ -20,10 +21,20 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider);
       
       const user = result.user;
-      console.log(`Berhasil login! Selamat datang, ${user.displayName}`);
+      console.log(`Berhasil login Google! Cek status pendaftaran: ${user.email}`);
 
-      // UPDATE: Setelah sukses login, arahkan ke Layar Profil (Netflix Style)
-      router.replace("/profiles");
+      // 🛡️ LOGIKA PENJAGA GERBANG (THE PRO FLOW)
+      // Cek apakah Ortu sudah pernah mengisi form registrasi manual (setup PIN & Biodata)
+      const parentSnap = await getDoc(doc(db, "parents", user.uid));
+      
+      if (parentSnap.exists()) {
+        // Sudah setup lengkap -> Lempar ke Layar Pilih Profil
+        router.replace("/profiles");
+      } else {
+        // Baru login Google doang tapi belum setup -> Paksa ke Halaman Registrasi Manual
+        router.replace("/register");
+      }
+
     } catch (error: any) {
       console.error("Gagal login:", error);
       alert(`Oops, gagal login: ${error.message}. Pastikan popup tidak diblokir browser ya!`);
@@ -33,7 +44,7 @@ export default function LoginPage() {
 
   // Fungsi Masuk KHUSUS Anak
   const handleChildEntrance = () => {
-    // UPDATE: Logika ala Netflix. Kalau belum ada akun Google yg nyangkut, anak gak bisa masuk.
+    // Logika ala Netflix. Kalau belum ada akun Google yg nyangkut, anak gak bisa masuk.
     if (auth.currentUser) {
       router.push("/profiles");
     } else {
