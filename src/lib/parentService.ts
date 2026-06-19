@@ -7,52 +7,64 @@ export interface ParentProfile {
   uid: string;
   email: string | null;
   name: string | null;
-  subscriptionPlan: "basic" | "pro" | "lifetime";
+  pin?: string; // ✅ UPDATE: Tambahan PIN Rahasia Ortu
+  subscriptionPlan: "basic" | "pro" | "annual" | "lifetime"; // ✅ UPDATE: Tambahan paket 'annual'
   subscriptionExpiry: string | null; // Menyimpan batas waktu (null jika seumur hidup / basic)
   createdAt: string;
 }
 
 /**
- * 1. PENJAGA PINTU (Interceptor)
- * Mengecek apakah profil orang tua sudah ada di Firestore.
- * Jika belum (baru pertama kali login Google), otomatis buatkan profil kasta BASIC.
+ * 1. FUNGSI CEK (Gatekeeper)
+ * Hanya mengecek apakah profil ortu sudah dibuat secara manual.
+ * Murni mengembalikan nilai True/False.
  */
-export const checkAndCreateParentProfile = async (): Promise<ParentProfile | null> => {
+export const checkParentProfile = async (): Promise<boolean> => {
   try {
     const user = auth.currentUser;
-    if (!user) throw new Error("Tidak ada user yang login");
+    if (!user) return false;
 
-    // Ngecek laci "parents" menggunakan UID Google si user
     const parentRef = doc(db, "parents", user.uid);
     const parentSnap = await getDoc(parentRef);
 
-    if (parentSnap.exists()) {
-      // Profil sudah ada, langsung kembalikan datanya
-      return parentSnap.data() as ParentProfile;
-    } else {
-      // Profil BELUM ada. Saatnya buatkan kasta "basic"
-      const newParentProfile: ParentProfile = {
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName,
-        subscriptionPlan: "basic",
-        subscriptionExpiry: null,
-        createdAt: new Date().toISOString(),
-      };
-
-      // Simpan ke Firestore
-      await setDoc(parentRef, newParentProfile);
-      return newParentProfile;
-    }
+    return parentSnap.exists();
   } catch (error) {
-    console.error("Gagal mengecek/membuat profil orang tua:", error);
-    return null;
+    console.error("Gagal mengecek profil:", error);
+    return false;
   }
 };
 
 /**
- * 2. FUNGSI BACA (Reader)
- * Mengambil data profil orang tua kapan saja dibutuhkan (misal untuk cek status gembok).
+ * 2. FUNGSI BUAT MANUAL (Registration)
+ * Dipanggil HANYA dari halaman /register saat Ortu selesai mengisi form PIN & Nama.
+ */
+export const createParentProfileManual = async (name: string, pin: string): Promise<ParentProfile> => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Tidak ada user yang login");
+
+    const newParentProfile: ParentProfile = {
+      uid: user.uid,
+      email: user.email,
+      name: name,
+      pin: pin, // Menyimpan PIN ke database
+      subscriptionPlan: "basic", // Default awal pendaftaran
+      subscriptionExpiry: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    const parentRef = doc(db, "parents", user.uid);
+    await setDoc(parentRef, newParentProfile);
+    
+    return newParentProfile;
+  } catch (error) {
+    console.error("Gagal membuat profil manual:", error);
+    throw error;
+  }
+};
+
+/**
+ * 3. FUNGSI BACA (Reader)
+ * Mengambil data profil orang tua kapan saja dibutuhkan (misal untuk narik data langganan).
  */
 export const getParentProfile = async (): Promise<ParentProfile | null> => {
   try {
@@ -71,3 +83,11 @@ export const getParentProfile = async (): Promise<ParentProfile | null> => {
     return null;
   }
 };
+
+/**
+ * 🚨 FUNGSI LEGACY (ANTI-CRASH)
+ * Menggantikan fungsi lama agar file useParentStore.ts yang masih pakai 
+ * nama 'checkAndCreateParentProfile' tidak error. 
+ * Sekarang fungsinya HANYA membaca, BUKAN membuat otomatis.
+ */
+export const checkAndCreateParentProfile = getParentProfile;

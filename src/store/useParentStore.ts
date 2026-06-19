@@ -1,6 +1,6 @@
 // src/store/useParentStore.ts
 import { create } from 'zustand';
-import { checkAndCreateParentProfile } from '@/lib/parentService';
+import { getParentProfile } from '@/lib/parentService';
 
 type PlanType = "basic" | "pro" | "annual" | "lifetime";
 
@@ -10,6 +10,7 @@ interface ParentState {
   isPlanFetched: boolean; // Penanda biar gak narik data 2x
   fetchParentData: () => Promise<void>;
   setParentPlan: (plan: PlanType) => void;
+  clearParentData: () => void; // ✅ Tambahan: buat reset pas logout
 }
 
 export const useParentStore = create<ParentState>((set, get) => ({
@@ -23,7 +24,8 @@ export const useParentStore = create<ParentState>((set, get) => ({
     
     set({ isPlanLoading: true });
     try {
-      const parentProfile = await checkAndCreateParentProfile();
+      // ✅ UPDATE: Sekarang kita murni cuma "Membaca" data, bukan membuat otomatis
+      const parentProfile = await getParentProfile();
       if (parentProfile && parentProfile.subscriptionPlan) {
         set({ 
           parentPlan: parentProfile.subscriptionPlan as PlanType, 
@@ -39,4 +41,11 @@ export const useParentStore = create<ParentState>((set, get) => ({
   
   // Fungsi buat nembak status instan (berguna pas Ortu baru selesai bayar di halaman Kasir)
   setParentPlan: (plan) => set({ parentPlan: plan }),
+
+  // ✅ UPDATE: Fungsi pembersih ransel saat Ortu Logout
+  clearParentData: () => set({
+    parentPlan: "basic",
+    isPlanFetched: false,
+    isPlanLoading: false
+  })
 }));
