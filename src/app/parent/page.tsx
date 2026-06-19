@@ -5,45 +5,42 @@ import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import { getMissionsFromDB, reviewMissionInDB } from "@/lib/missionService"; 
 import { getChildrenProfiles } from "@/lib/childService";
-import { checkAndCreateParentProfile } from "@/lib/parentService"; 
 import { auth, db } from "@/lib/firebase"; 
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore"; 
 import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings, Gift, Check, User, Crown } from "lucide-react"; 
 
-// ✅ UPDATE: Menambahkan 'annual' ke dalam definisi tipe
-type PlanType = "basic" | "pro" | "annual" | "lifetime";
+// ✅ UPDATE 1: Import Ransel Zustand Ortu
+import { useParentStore } from "@/store/useParentStore";
 
 export default function ParentDashboard() {
+  // ✅ UPDATE 2: Tarik kasta dan fungsi fetch dari Zustand
+  const { parentPlan, fetchParentData, isPlanLoading } = useParentStore();
+
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
   const [pendingRewards, setPendingRewards] = useState<any[]>([]); 
   const [childrenData, setChildrenData] = useState<any[]>([]);
   
-  // ✅ UPDATE: Menggunakan tipe PlanType yang baru
-  const [parentPlan, setParentPlan] = useState<PlanType>("basic");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
+        // ✅ UPDATE 3: Panggil fungsi dari Zustand (dia akan ngecek otomatis perlu fetch atau gak)
+        fetchParentData();
+        // Panggil fungsi penarik data anak & misi
         fetchDashboardData();
       } else {
         setIsLoading(false);
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [fetchParentData]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // 1. JALANKAN PENJAGA PINTU DULU: Cek & Bikin profil ortu kalau belum ada
-      const parentProfile = await checkAndCreateParentProfile();
-      if (parentProfile) {
-        setParentPlan(parentProfile.subscriptionPlan as PlanType);
-      }
-
-      // 2. Tarik sisa data dasbor seperti biasa
+      // ✅ UPDATE 4: Fungsi ini sekarang HANYA fokus narik data anak & misi (Lebih Cepat!)
       const [profiles, missions] = await Promise.all([
         getChildrenProfiles(),
         getMissionsFromDB()
@@ -92,7 +89,10 @@ export default function ParentDashboard() {
     }
   };
 
-  if (isLoading && childrenData.length === 0) {
+  // ✅ UPDATE 5: Layar loading menyesuaikan data Zustand juga
+  const isPageLoading = isLoading || isPlanLoading;
+
+  if (isPageLoading && childrenData.length === 0) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-emerald-600 animate-pulse">
         Menyiapkan Dasbor...
@@ -108,7 +108,7 @@ export default function ParentDashboard() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-2xl font-extrabold tracking-tight">Dasbor Orang Tua</h1>
-              {/* ✅ UPDATE: Logika Badge disesuaikan untuk 4 Kasta */}
+              {/* Badge Kasta akan langsung muncul tanpa kedap-kedip berkat Zustand */}
               {parentPlan !== "basic" ? (
                 <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-yellow-950 text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm">
                   <Crown className="w-3 h-3" /> 

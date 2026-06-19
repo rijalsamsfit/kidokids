@@ -3,18 +3,24 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
-import ProgressChart from "@/components/ProgressChart"; // <-- UPDATE: Import Grafik
+import ProgressChart from "@/components/ProgressChart"; 
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
 import { 
   Brain, Sparkles, Loader2, User, ChevronRight, AlertCircle, Bot, 
-  Lock, Calendar, Trophy, Coins, BarChart3 
+  Lock, Calendar, Trophy, Coins, BarChart3, Crown 
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+
+// ✅ UPDATE 1: Import Ransel Zustand Ortu
+import { useParentStore } from "@/store/useParentStore";
 
 export default function ParentAnalytics() {
   const router = useRouter();
   
+  // ✅ UPDATE 2: Tarik kasta Ortu dan fungsi fetch dari Zustand
+  const { parentPlan, fetchParentData, isPlanLoading } = useParentStore();
+
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [selectedChild, setSelectedChild] = useState<any>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -24,15 +30,17 @@ export default function ParentAnalytics() {
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // FASE 2, 3 & 4: State
   const [lastAnalysisDate, setLastAnalysisDate] = useState<string | null>(null);
   const [stats, setStats] = useState({ completedMissions: 0, totalXP: 0 });
-  const [chartData, setChartData] = useState<any[]>([]); // <-- UPDATE: State untuk Data Grafik
+  const [chartData, setChartData] = useState<any[]>([]); 
 
-  // 1. Cek Auth & Tarik Data Anak
+  // 1. Cek Auth & Tarik Data Anak + Zustand
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
+        // ✅ UPDATE 3: Panggil Zustand untuk kasta Ortu
+        fetchParentData();
+
         try {
           const q = query(collection(db, "children"), where("parentId", "==", user.uid));
           const querySnapshot = await getDocs(q);
@@ -55,9 +63,9 @@ export default function ParentAnalytics() {
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router, fetchParentData]);
 
-  // 2. FASE 3 & 4: Tarik Riwayat Analisis Terakhir, Statistik, & Data Grafik saat Anak dipilih
+  // 2. Tarik Riwayat Analisis Terakhir, Statistik, & Data Grafik saat Anak dipilih
   useEffect(() => {
     if (!selectedChild) return;
 
@@ -68,7 +76,6 @@ export default function ParentAnalytics() {
       setLastAnalysisDate(null);
 
       try {
-        // <-- UPDATE: Generate template 7 hari terakhir untuk grafik
         const last7Days = Array.from({ length: 7 }, (_, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (6 - i));
@@ -79,7 +86,6 @@ export default function ParentAnalytics() {
           };
         });
 
-        // Hitung total misi selesai untuk Kotak Ringkasan & Data Grafik
         const missionsQuery = query(collection(db, "missions"), where("childId", "==", selectedChild.id));
         const missionsSnap = await getDocs(missionsQuery);
         let completed = 0;
@@ -89,7 +95,6 @@ export default function ParentAnalytics() {
           if (data.status === 'completed' || data.status === 'approved') {
             completed++;
             
-            // <-- UPDATE: Ekstrak tanggal misi untuk dimasukkan ke grafik
             const timestamp = data.completedAt || data.createdAt; 
             if (timestamp) {
               const missionDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -104,9 +109,8 @@ export default function ParentAnalytics() {
         });
         
         setStats({ completedMissions: completed, totalXP: selectedChild.xp || 0 });
-        setChartData(last7Days); // <-- UPDATE: Simpan data yang udah dikalkulasi ke state grafik
+        setChartData(last7Days); 
 
-        // Tarik data analisis terakhir dari Firestore
         const analysisQuery = query(
           collection(db, "parent_analyses"), 
           where("childId", "==", selectedChild.id),
@@ -118,7 +122,6 @@ export default function ParentAnalytics() {
         if (!analysisSnap.empty) {
           const data = analysisSnap.docs[0].data();
           setAnalysisResult(data.analysis);
-          // Konversi timestamp Firestore ke string ISO
           const dateStr = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt;
           setLastAnalysisDate(dateStr);
         }
@@ -132,9 +135,15 @@ export default function ParentAnalytics() {
     fetchChildData();
   }, [selectedChild]);
 
-  // FASE 2: Engine Kalkulasi Cooldown 7 Hari
-  const checkCooldown = () => {
-    if (!lastAnalysisDate) return { isLocked: false, daysLeft: 0 };
+  // ✅ UPDATE 4: Engine Kalkulasi Hak Akses (Basic = Lock, VIP = Cek Cooldown)
+  const checkAccess = () => {
+    // Kalau kasta Basic, gembok total
+    if (parentPlan === "basic") {
+      return { isLocked: true, type: "premium_required", daysLeft: 0 };
+    }
+
+    // Kalau VIP, cek apakah ada cooldown 7 hari
+    if (!lastAnalysisDate) return { isLocked: false, type: "none", daysLeft: 0 };
 
     const now = new Date();
     const lastDate = new Date(lastAnalysisDate);
@@ -145,20 +154,25 @@ export default function ParentAnalytics() {
     const isLocked = diffDays < cooldownPeriod;
     const daysLeft = cooldownPeriod - diffDays;
 
-    return { isLocked, daysLeft: daysLeft > 0 ? daysLeft : 0 };
+    return { isLocked, type: isLocked ? "cooldown" : "none", daysLeft: daysLeft > 0 ? daysLeft : 0 };
   };
 
-  const { isLocked, daysLeft } = checkCooldown();
+  const access = checkAccess();
 
   // 3. Eksekusi Gemini
   const handleAnalyze = async () => {
-    if (!selectedChild || isLocked) return;
+    // Kalau Basic maksa ngeklik (jika tembus), lempar ke kasir
+    if (access.type === "premium_required") {
+      router.push("/parent/billing");
+      return;
+    }
+
+    if (!selectedChild || access.isLocked) return;
     
     setIsAnalyzing(true);
     setErrorMsg(null);
 
     try {
-      // Tarik ulang data mentah untuk dikirim ke API
       const missionsQuery = query(collection(db, "missions"), where("childId", "==", selectedChild.id));
       const missionsSnap = await getDocs(missionsQuery);
       
@@ -211,7 +225,8 @@ export default function ParentAnalytics() {
     }
   };
 
-  if (isLoadingAuth) {
+  // ✅ UPDATE 5: Sinkronisasi loading Auth dan Zustand
+  if (isLoadingAuth || isPlanLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
@@ -293,7 +308,7 @@ export default function ParentAnalytics() {
                 </div>
               </div>
 
-              {/* FASE 4: GRAFIK AKTIVITAS 7 HARI TERAKHIR */}
+              {/* GRAFIK AKTIVITAS 7 HARI TERAKHIR */}
               <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
                 <div className="flex items-center gap-2 mb-4">
                   <BarChart3 className="w-5 h-5 text-purple-500" />
@@ -312,7 +327,26 @@ export default function ParentAnalytics() {
               </div>
 
               {/* AREA KONSULTASI AI */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                
+                {/* 🔒 UPDATE 6: EFEK BLUR KASTA BASIC */}
+                {access.type === "premium_required" && (
+                  <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-lg border-2 border-amber-200">
+                      <Lock className="w-8 h-8" />
+                    </div>
+                    <h3 className="font-black text-slate-800 text-xl mb-2">Laporan VIP Terkunci</h3>
+                    <p className="text-slate-600 font-bold text-sm mb-6">Upgrade ke KIDO Premium untuk membuka analisis karakter berbasis AI mingguan.</p>
+                    
+                    <button
+                      onClick={() => router.push("/parent/billing")}
+                      className="w-full max-w-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-300 transition-all active:scale-95"
+                    >
+                      <Crown className="w-5 h-5" /> Buka Kunci VIP
+                    </button>
+                  </div>
+                )}
+
                 <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Bot className="w-8 h-8 text-purple-600" />
                 </div>
@@ -322,13 +356,13 @@ export default function ParentAnalytics() {
                 </p>
 
                 {/* BANNER EDUKASI COOLDOWN */}
-                {isLocked && (
+                {access.type === "cooldown" && (
                   <div className="mb-6 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start space-x-3 text-left">
                     <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-amber-900">Kuotasi Evaluasi Mingguan</span>
                       <span className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                        AI butuh waktu merekam perkembangan konsistensi anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{daysLeft} hari lagi</strong>.
+                        AI butuh waktu merekam perkembangan konsistensi anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{access.daysLeft} hari lagi</strong>.
                       </span>
                     </div>
                   </div>
@@ -337,9 +371,9 @@ export default function ParentAnalytics() {
                 {/* TOMBOL ANALISIS */}
                 <button
                   onClick={handleAnalyze}
-                  disabled={isAnalyzing || isLocked}
+                  disabled={isAnalyzing || access.isLocked}
                   className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all ${
-                    isLocked 
+                    access.isLocked 
                       ? "bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed" 
                       : isAnalyzing
                         ? "bg-purple-400 text-white cursor-not-allowed"
@@ -351,10 +385,10 @@ export default function ParentAnalytics() {
                       <Loader2 className="w-6 h-6 animate-spin" />
                       Membaca Jurnal...
                     </>
-                  ) : isLocked ? (
+                  ) : access.type === "cooldown" ? (
                     <>
                       <Lock className="w-5 h-5" />
-                      Terkunci ({daysLeft} Hari)
+                      Terkunci ({access.daysLeft} Hari)
                     </>
                   ) : (
                     <>

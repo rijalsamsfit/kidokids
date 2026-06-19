@@ -10,7 +10,6 @@ import {
   updateChildPin, 
   updateChildSettings 
 } from "@/lib/childService";
-import { checkAndCreateParentProfile } from "@/lib/parentService"; 
 import { 
   ArrowLeft, Users, UserPlus, Eye, EyeOff, Clock, Moon, 
   ShieldCheck, CreditCard, LogOut, X, Loader2, ChevronRight, Settings,
@@ -18,13 +17,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-type PlanType = "basic" | "pro" | "annual" | "lifetime";
+// ✅ UPDATE 1: Import Ransel Zustand
+import { useParentStore } from "@/store/useParentStore";
 
 export default function SettingsPage() {
   const router = useRouter();
+  
+  // ✅ UPDATE 2: Tarik kasta Ortu dan status loading dari Zustand
+  const { parentPlan, fetchParentData, isPlanLoading } = useParentStore();
+
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [childrenData, setChildrenData] = useState<any[]>([]);
-  const [parentPlan, setParentPlan] = useState<PlanType>("basic");
   const [isLoading, setIsLoading] = useState(true);
   
   const [visiblePins, setVisiblePins] = useState<{ [key: string]: boolean }>({});
@@ -44,21 +47,21 @@ export default function SettingsPage() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setUserEmail(user.email);
+        // ✅ UPDATE 3: Panggil Zustand untuk kasta Ortu
+        fetchParentData();
+        // Panggil data anak
         fetchDashboardData();
       } else {
         router.push("/login");
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, [router, fetchParentData]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const parentProfile = await checkAndCreateParentProfile();
-      if (parentProfile) {
-        setParentPlan(parentProfile.subscriptionPlan as PlanType);
-      }
+      // ✅ UPDATE 4: Fungsi ini murni cuma narik data anak sekarang (lebih ngebut)
       const profiles = await getChildrenProfiles();
       setChildrenData(profiles);
     } catch (error) {
@@ -126,7 +129,6 @@ export default function SettingsPage() {
     }
     setIsSubmitting(true);
     try {
-      // NOTE: Fungsi createChildProfile di lib/childService.ts harus di-update nanti biar nerima parameter umur!
       await createChildProfile(newChildName, newChildPin, newChildAge); 
       alert(`🎉 Profil ${newChildName} berhasil dibuat!`);
       setIsAddChildOpen(false);
@@ -148,7 +150,10 @@ export default function SettingsPage() {
     }
   };
 
-  if (isLoading) {
+  // ✅ UPDATE 5: Sinkronisasi loading Zustand dan Firebase
+  const isPageLoading = isLoading || isPlanLoading;
+
+  if (isPageLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
@@ -172,6 +177,7 @@ export default function SettingsPage() {
             <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
               <Users className="w-4 h-4" /> Pasukan Pahlawan
             </h2>
+            {/* ✅ UPDATE 6: Membaca status Premium dari Zustand langsung! */}
             {parentPlan !== "basic" && (
               <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md flex items-center gap-1">
                 <Crown className="w-3 h-3" /> VIP
