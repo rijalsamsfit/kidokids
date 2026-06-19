@@ -9,11 +9,17 @@ import { db } from "@/lib/firebase";
 import { doc, updateDoc, increment, getDoc, addDoc, collection } from "firebase/firestore";
 import { Store, Coins, Gift, Sparkles, Lock, Loader2 } from "lucide-react";
 
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
+
 export default function ChildShop() {
   const router = useRouter();
   
   // Tarik data dan status hidratasi dari brankas Zustand
   const { activeChildId, activeChildName, coins, addCoins, hasHydrated } = useGameStore();
+
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT
+  const { showAlert, showConfirm } = useModalStore();
 
   const [rewards, setRewards] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,42 +67,57 @@ export default function ChildShop() {
 
     // Keamanan ganda: Cek apakah koin cukup
     if (coins < reward.cost) {
-      alert("Yah, koin kamu belum cukup! Yuk kerjain misi lagi buat tambah koin.");
+      // ✅ 3. ALERT KALAU KOIN KURANG
+      showAlert(
+        "Koin Kurang! 🪙", 
+        "Yah, koin kamu belum cukup! Yuk kerjain misi lagi buat tambah koin."
+      );
       return;
     }
 
-    const confirmBuy = window.confirm(`Kamu mau menukar ${reward.cost} Koin dengan hadiah "${reward.title}"?`);
-    if (!confirmBuy) return;
+    // ✅ 4. CUSTOM CONFIRM ANAK MAU BELI
+    showConfirm(
+      "Mau Tukar Koin?",
+      `Kamu mau menukar ${reward.cost} Koin dengan hadiah "${reward.title}"?`,
+      async () => {
+        setIsProcessing(true);
+        try {
+          // 1. Potong koin anak di Firebase (pakai angka minus)
+          const childRef = doc(db, "children", activeChildId);
+          await updateDoc(childRef, {
+            coins: increment(-reward.cost)
+          });
 
-    setIsProcessing(true);
-    try {
-      // 1. Potong koin anak di Firebase (pakai angka minus)
-      const childRef = doc(db, "children", activeChildId);
-      await updateDoc(childRef, {
-        coins: increment(-reward.cost)
-      });
+          // 2. Rekam riwayat klaim hadiah untuk dilaporkan ke Orang Tua
+          await addDoc(collection(db, "claimed_rewards"), {
+            childId: activeChildId,
+            childName: activeChildName || "Pahlawan",
+            rewardId: reward.id,
+            rewardTitle: reward.title,
+            cost: reward.cost,
+            status: "pending", // "pending" berarti hadiah belum diserahkan oleh Ortu
+            claimedAt: new Date().toISOString()
+          });
 
-      // 2. Rekam riwayat klaim hadiah untuk dilaporkan ke Orang Tua
-      await addDoc(collection(db, "claimed_rewards"), {
-        childId: activeChildId,
-        childName: activeChildName || "Pahlawan",
-        rewardId: reward.id,
-        rewardTitle: reward.title,
-        cost: reward.cost,
-        status: "pending", // "pending" berarti hadiah dunia nyata belum diserahkan oleh Ortu
-        claimedAt: new Date().toISOString()
-      });
+          // 3. Update koin di Zustand (otomatis layar langsung update tanpa refresh)
+          addCoins(-reward.cost);
 
-      // 3. Update koin di Zustand (otomatis layar langsung update tanpa refresh)
-      addCoins(-reward.cost);
+          // ✅ 5. CUSTOM ALERT PAS BERHASIL BELI
+          showAlert(
+            "Hadiah Diamankan! 🎉", 
+            `Hore! Kamu berhasil menukarkan hadiah: ${reward.title}. Langsung kasih tau Ayah/Ibu ya buat minta hadiahnya!`
+          );
 
-      alert(`🎉 Hore! Kamu berhasil menukarkan hadiah: ${reward.title}. Langsung kasih tau Ayah/Ibu ya buat minta hadiahnya!`);
-    } catch (error) {
-      alert("Gagal menukar koin. Pastikan internet kamu lancar ya!");
-      console.error("Gagal klaim hadiah:", error);
-    } finally {
-      setIsProcessing(false);
-    }
+        } catch (error) {
+          showAlert("Ups! Ada Masalah", "Gagal menukar koin. Pastikan internet kamu lancar ya!");
+          console.error("Gagal klaim hadiah:", error);
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+      "Ya, Beli",
+      "Batal"
+    );
   };
 
   // LAYAR LOADING UTAMA: Menahan UI jika Zustand belum selesai berpikir atau data lagi ditarik

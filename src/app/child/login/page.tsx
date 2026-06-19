@@ -3,21 +3,24 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-// ✅ UPDATE: Tambahkan doc dan getDoc untuk narik kasta Ortu
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { ArrowLeft, User, Lock, Delete, Loader2 } from "lucide-react";
 import { useGameStore } from "@/store/useGameStore";
 
-// ✅ UPDATE: Samakan definisi tipe PlanType
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
+
 type PlanType = "basic" | "pro" | "annual" | "lifetime";
 
 export default function ChildLogin() {
   const router = useRouter();
   
   const setActiveChild = useGameStore((state) => state.setActiveChild);
+  
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT
+  const { showAlert } = useModalStore();
 
   const [childrenData, setChildrenData] = useState<any[]>([]);
-  // ✅ STATE BARU: Menyimpan kasta orang tua untuk dititipkan ke anak
   const [parentPlan, setParentPlan] = useState<PlanType>("basic");
   const [isLoading, setIsLoading] = useState(true);
   
@@ -31,14 +34,14 @@ export default function ChildLogin() {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         try {
-          // ✅ 1. Tarik Data Kasta Orang Tua Dulu
+          // Tarik Data Kasta Orang Tua Dulu
           const parentRef = doc(db, "parents", user.uid);
           const parentSnap = await getDoc(parentRef);
           if (parentSnap.exists()) {
             setParentPlan(parentSnap.data().subscriptionPlan as PlanType || "basic");
           }
 
-          // 2. Tarik data anak-anak yang terhubung
+          // Tarik data anak-anak yang terhubung
           const q = query(collection(db, "children"), where("parentId", "==", user.uid));
           const querySnapshot = await getDocs(q);
           const childrenList = querySnapshot.docs.map(doc => ({
@@ -48,13 +51,15 @@ export default function ChildLogin() {
           setChildrenData(childrenList);
         } catch (error) {
           console.error("Gagal menarik data:", error);
+          // ✅ 3. TAMPILKAN CUSTOM ALERT JIKA GAGAL LOAD DATA
+          showAlert("Ups! Koneksi Terputus", "Gagal memanggil data profilmu. Coba cek internetnya dan muat ulang ya!");
         }
       }
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [showAlert]);
 
   // Fungsi Keypad Custom
   const handleKeyPress = (num: string) => {
@@ -76,12 +81,10 @@ export default function ChildLogin() {
   };
 
   const verifyPin = (enteredPin: string) => {
-    // Karena kita belum set PIN beneran di database (Fase 1), 
-    // untuk sementara kita pakai PIN universal "1234" buat ngetes UI
     const correctPin = selectedChild.pin || "1234"; 
 
     if (enteredPin === correctPin) {
-      // 🔥 PERBAIKAN: Titipkan parentPlan ke dalam memori anak!
+      // Titipkan parentPlan ke dalam memori anak!
       setActiveChild(
         selectedChild.id,
         selectedChild.name,
@@ -90,13 +93,13 @@ export default function ChildLogin() {
         selectedChild.coins || 0,
         selectedChild.missionsCompleted || 0,
         selectedChild.unlockedBadges || [],
-        parentPlan // ✅ Kunci VIP diserahkan di sini
+        parentPlan 
       );
       
       // Lempar ke Dashboard Anak
       router.push("/child");
     } else {
-      // PIN Salah
+      // PIN Salah (Tetap gunakan UX warna merah & getar, ini udah bagus banget)
       setIsError(true);
       setTimeout(() => {
         setPin(""); // Kosongkan PIN setelah 0.5 detik biar anak bisa coba lagi
@@ -160,8 +163,13 @@ export default function ChildLogin() {
                   onClick={() => setSelectedChild(child)}
                   className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-transparent hover:border-blue-300 hover:shadow-md transition-all flex flex-col items-center group active:scale-95"
                 >
-                  <div className="w-20 h-20 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <User className="w-10 h-10" />
+                  {/* ✅ 4. BONUS VIP: NAMPILIN FOTO WAJAH ASLI ANAK */}
+                  <div className="w-20 h-20 bg-blue-100 text-blue-500 rounded-[1.5rem] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden shadow-sm">
+                    {child.photoUrl ? (
+                      <img src={child.photoUrl} alt={child.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-10 h-10" />
+                    )}
                   </div>
                   <p className="font-extrabold text-slate-700 text-lg capitalize">{child.name}</p>
                 </button>
@@ -172,6 +180,18 @@ export default function ChildLogin() {
 
         /* TAMPILAN 2: MASUKKAN PIN ANAK */
           <div className="animate-in slide-in-from-right-8 duration-300 flex flex-col items-center">
+            
+            {/* Foto Profil Kecil Pas Masukin PIN */}
+            <div className="w-16 h-16 bg-blue-100 rounded-full mb-3 overflow-hidden shadow-sm border-2 border-white">
+               {selectedChild.photoUrl ? (
+                 <img src={selectedChild.photoUrl} alt={selectedChild.name} className="w-full h-full object-cover" />
+               ) : (
+                 <div className="w-full h-full flex items-center justify-center text-blue-500 font-black text-2xl uppercase">
+                   {selectedChild.name.charAt(0)}
+                 </div>
+               )}
+            </div>
+
             <h2 className="text-2xl font-black text-slate-800 mb-2">Hai, {selectedChild.name}!</h2>
             <p className="text-slate-500 font-medium mb-8">Masukkan PIN rahasiamu</p>
 
@@ -192,7 +212,7 @@ export default function ChildLogin() {
             </div>
 
             {/* Pesan Eror */}
-            {isError && <p className="text-rose-500 font-bold mb-4">PIN Salah, coba lagi!</p>}
+            {isError && <p className="text-rose-500 font-bold mb-4 animate-shake">PIN Salah, coba lagi!</p>}
 
             {/* Keypad Angka Custom */}
             <div className="grid grid-cols-3 gap-4 w-full max-w-[280px]">

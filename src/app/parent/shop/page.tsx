@@ -6,7 +6,13 @@ import { addRewardToDB, getRewardsFromDB, deleteRewardFromDB } from "@/lib/rewar
 import { auth } from "@/lib/firebase";
 import { Plus, Gift, Store, Coins, Sparkles, Trash2, X, Loader2, ShoppingBag } from "lucide-react";
 
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
+
 export default function ParentShopPage() {
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT & CONFIRM
+  const { showAlert, showConfirm } = useModalStore();
+
   const [isRewardFormOpen, setIsRewardFormOpen] = useState(false);
   const [rewardTitle, setRewardTitle] = useState("");
   const [rewardCost, setRewardCost] = useState<number | "">(30);
@@ -44,31 +50,39 @@ export default function ParentShopPage() {
   };
 
   const handleAddReward = async () => {
-    if (!rewardTitle) return alert("Nama hadiah harus diisi!");
-    if (rewardCost === "" || rewardCost <= 0) return alert("Harga koin harus lebih dari 0!");
+    // ✅ 3. VALIDASI PAKE CUSTOM ALERT
+    if (!rewardTitle) return showAlert("Data Belum Lengkap", "Nama hadiah tidak boleh kosong ya!");
+    if (rewardCost === "" || rewardCost <= 0) return showAlert("Harga Tidak Valid", "Harga koin harus lebih dari 0 dong!");
     
     try {
       await addRewardToDB(rewardTitle, Number(rewardCost));
-      alert(`🎉 Hadiah "${rewardTitle}" berhasil ditambahkan ke Etalase!`);
+      // ✅ 4. NOTIFIKASI SUKSES PAKE CUSTOM ALERT
+      showAlert("Masuk Etalase! 🎉", `Hadiah "${rewardTitle}" berhasil dipajang di toko anak.`);
       setIsRewardFormOpen(false);
       setRewardTitle("");
       setRewardCost(30);
       fetchRewardsData(); 
     } catch (error) {
-      alert("Gagal menyimpan hadiah. Pastikan koneksi aman.");
+      showAlert("Gagal Menyimpan", "Sistem gagal menyimpan hadiah. Pastikan koneksi internetmu lancar.");
     }
   };
 
-  const handleDeleteReward = async (id: string) => {
-    const confirmDelete = window.confirm("Yakin mau hapus hadiah ini dari toko?");
-    if (!confirmDelete) return;
-
-    try {
-      await deleteRewardFromDB(id);
-      fetchRewardsData(); 
-    } catch (error) {
-      alert("Gagal menghapus hadiah.");
-    }
+  const handleDeleteReward = (id: string) => {
+    // ✅ 5. KONFIRMASI HAPUS PAKE CUSTOM CONFIRM
+    showConfirm(
+      "Hapus Hadiah? 🗑️",
+      "Yakin mau menarik hadiah ini dari etalase toko?",
+      async () => {
+        try {
+          await deleteRewardFromDB(id);
+          fetchRewardsData(); 
+        } catch (error) {
+          showAlert("Gagal Menghapus", "Terjadi kesalahan saat menghapus hadiah. Coba lagi nanti.");
+        }
+      },
+      "Ya, Hapus",
+      "Batal"
+    );
   };
 
   if (isLoading && rewards.length === 0) {
@@ -147,7 +161,7 @@ export default function ParentShopPage() {
                     </div>
                     <button 
                       onClick={() => handleDeleteReward(reward.id)} 
-                      className="p-2 text-rose-400 hover:bg-rose-100 rounded-xl transition-colors"
+                      className="p-2 text-rose-400 hover:bg-rose-100 rounded-xl transition-colors active:scale-95"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -170,7 +184,7 @@ export default function ParentShopPage() {
               <h3 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
                 <Gift className="w-6 h-6 text-purple-500" /> Jual Hadiah Baru
               </h3>
-              <button onClick={() => setIsRewardFormOpen(false)} className="p-2 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200">
+              <button onClick={() => setIsRewardFormOpen(false)} className="p-2 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>

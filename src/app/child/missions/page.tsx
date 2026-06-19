@@ -10,11 +10,17 @@ import { submitMissionProofInDB } from "@/lib/missionService";
 import { compressImage } from "@/utils/imageCompression";
 import { Target, CheckCircle, Clock, Camera, Loader2, Zap, AlertCircle, Sparkles, BookOpen } from "lucide-react";
 
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
+
 export default function ChildMissions() {
   const router = useRouter();
   
-  // ✅ 1. Tarik Guard dari Zustand
+  // Tarik Guard dari Zustand
   const { activeChildId, activeChildName, hasHydrated } = useGameStore();
+
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT
+  const { showAlert } = useModalStore();
 
   const [mounted, setMounted] = useState(false);
   const [missions, setMissions] = useState<any[]>([]);
@@ -27,16 +33,16 @@ export default function ChildMissions() {
   useEffect(() => {
     setMounted(true);
     
-    // ✅ 2. GUARD: Tunggu Hydration
+    // GUARD: Tunggu Hydration
     if (!hasHydrated) return;
 
-    // ✅ 3. GUARD: Cek ID Anak
+    // GUARD: Cek ID Anak
     if (!activeChildId) {
       router.push("/child/login");
       return;
     }
 
-    // ✅ 4. Listener Real-time Firebase
+    // Listener Real-time Firebase
     const q = query(collection(db, "missions"), where("childId", "==", activeChildId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedMissions: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -59,16 +65,26 @@ export default function ChildMissions() {
     try {
       const compressedFile = await compressImage(file);
       await submitMissionProofInDB(missionId, compressedFile);
-      alert("Bukti foto berhasil dikirim! Tunggu Ayah/Bunda memeriksa ya! 🌟");
+      
+      // ✅ 3. GUNAKAN CUSTOM ALERT DENGAN BAHASA RAMAH ANAK
+      showAlert(
+        "Berhasil Terkirim! 🌟", 
+        "Bukti foto sudah dikirim. Tunggu Ayah/Bunda memeriksa ya! Pahlawan hebat!"
+      );
     } catch (error) {
       console.error("Upload eror:", error);
-      alert("Gagal mengunggah gambar bukti. Pastikan koneksi internet lancar dan coba lagi.");
+      
+      // ✅ 4. CUSTOM ALERT UNTUK ERROR
+      showAlert(
+        "Gagal Mengunggah", 
+        "Yah, gagal mengirim foto. Pastikan internetmu lancar dan coba lagi ya."
+      );
     } finally {
       setUploadingId(null);
     }
   };
 
-  // ✅ 5. Filter Misi Berdasarkan Tab
+  // Filter Misi Berdasarkan Tab
   const filteredMissions = missions.filter((mission) => {
     if (activeTab === 'tersedia') {
       return mission.status === 'pending' || mission.status === 'rejected';

@@ -9,12 +9,15 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore"; 
 import { Clock, Star, RefreshCw, ThumbsUp, ThumbsDown, Eye, ZoomIn, X, Users, Settings, Gift, Check, User, Crown } from "lucide-react"; 
 
-// ✅ UPDATE 1: Import Ransel Zustand Ortu
 import { useParentStore } from "@/store/useParentStore";
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
 
 export default function ParentDashboard() {
-  // ✅ UPDATE 2: Tarik kasta dan fungsi fetch dari Zustand
   const { parentPlan, fetchParentData, isPlanLoading } = useParentStore();
+  
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT & CONFIRM
+  const { showAlert, showConfirm } = useModalStore();
 
   const [pendingMissions, setPendingMissions] = useState<any[]>([]);
   const [pendingRewards, setPendingRewards] = useState<any[]>([]); 
@@ -26,9 +29,7 @@ export default function ParentDashboard() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        // ✅ UPDATE 3: Panggil fungsi dari Zustand (dia akan ngecek otomatis perlu fetch atau gak)
         fetchParentData();
-        // Panggil fungsi penarik data anak & misi
         fetchDashboardData();
       } else {
         setIsLoading(false);
@@ -40,7 +41,6 @@ export default function ParentDashboard() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // ✅ UPDATE 4: Fungsi ini sekarang HANYA fokus narik data anak & misi (Lebih Cepat!)
       const [profiles, missions] = await Promise.all([
         getChildrenProfiles(),
         getMissionsFromDB()
@@ -61,35 +61,56 @@ export default function ParentDashboard() {
     }
   };
 
-  const handleReview = async (missionId: string, status: "approved" | "rejected", xpReward: number) => {
-    const confirmAction = window.confirm(`Apakah kamu yakin ingin ${status === "approved" ? "MENYETUJUI" : "MENOLAK"} misi ini?`);
-    if (!confirmAction) return;
-
-    try {
-      await reviewMissionInDB(missionId, status, xpReward);
-      alert(status === "approved" ? "🎉 Misi disetujui! XP & Koin telah dikirim ke akun anak." : "Misi ditolak. Anak diminta mengirim ulang foto.");
-      fetchDashboardData(); 
-    } catch (error) {
-      alert("Gagal memproses tindakan. Coba lagi.");
-    }
+  // ✅ 3. ROMBAK FUNGSI REVIEW MISI (GANTI KE CUSTOM CONFIRM & ALERT)
+  const handleReview = (missionId: string, status: "approved" | "rejected", xpReward: number) => {
+    
+    const isApproved = status === "approved";
+    
+    showConfirm(
+      isApproved ? "Setujui Misi?" : "Tolak Misi?",
+      isApproved 
+        ? "Apakah kamu yakin ingin menyetujui misi ini? XP dan Koin akan langsung ditambahkan ke dompet anak." 
+        : "Kamu akan menolak misi ini. Anak akan diminta untuk memfoto ulang buktinya. Lanjutkan?",
+      async () => {
+        try {
+          await reviewMissionInDB(missionId, status, xpReward);
+          showAlert(
+            isApproved ? "Misi Disetujui! 🎉" : "Misi Ditolak", 
+            isApproved 
+              ? "Laporan berhasil diverifikasi. XP & Koin telah dikirim ke akun anak." 
+              : "Laporan ditolak. Anak diminta mengirim ulang foto bukti."
+          );
+          fetchDashboardData(); 
+        } catch (error) {
+          showAlert("Gagal", "Sistem gagal memproses tindakanmu. Silakan coba lagi.");
+        }
+      },
+      isApproved ? "Ya, Setujui" : "Ya, Tolak",
+      "Batal"
+    );
   };
 
-  const handleGiveReward = async (rewardId: string, rewardTitle: string, childName: string) => {
-    const confirmAction = window.confirm(`Konfirmasi: Apakah hadiah "${rewardTitle}" sudah diberikan kepada ${childName} di dunia nyata?`);
-    if (!confirmAction) return;
-
-    try {
-      const rewardRef = doc(db, "claimed_rewards", rewardId);
-      await updateDoc(rewardRef, { status: "completed" });
-      alert("✅ Mantap! Hadiah berhasil ditandai sudah diberikan.");
-      fetchDashboardData(); 
-    } catch (error) {
-      alert("Gagal memperbarui status hadiah. Coba lagi.");
-      console.error(error);
-    }
+  // ✅ 4. ROMBAK FUNGSI BERIKAN HADIAH (GANTI KE CUSTOM CONFIRM & ALERT)
+  const handleGiveReward = (rewardId: string, rewardTitle: string, childName: string) => {
+    showConfirm(
+      "Konfirmasi Hadiah 🎁",
+      `Apakah hadiah "${rewardTitle}" sudah benar-benar kamu berikan kepada ${childName} di dunia nyata?`,
+      async () => {
+        try {
+          const rewardRef = doc(db, "claimed_rewards", rewardId);
+          await updateDoc(rewardRef, { status: "completed" });
+          showAlert("Berhasil", "Mantap! Transaksi hadiah berhasil ditandai selesai.");
+          fetchDashboardData(); 
+        } catch (error) {
+          showAlert("Gagal", "Sistem gagal memperbarui status hadiah. Coba lagi.");
+          console.error(error);
+        }
+      },
+      "Sudah Diberikan",
+      "Belum"
+    );
   };
 
-  // ✅ UPDATE 5: Layar loading menyesuaikan data Zustand juga
   const isPageLoading = isLoading || isPlanLoading;
 
   if (isPageLoading && childrenData.length === 0) {
@@ -108,7 +129,6 @@ export default function ParentDashboard() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-2xl font-extrabold tracking-tight">Dasbor Orang Tua</h1>
-              {/* Badge Kasta akan langsung muncul tanpa kedap-kedip berkat Zustand */}
               {parentPlan !== "basic" ? (
                 <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-yellow-950 text-[10px] font-black rounded-md uppercase tracking-wider shadow-sm">
                   <Crown className="w-3 h-3" /> 
@@ -134,8 +154,13 @@ export default function ParentDashboard() {
           {childrenData.map((child) => (
             <div key={child.id} className="bg-emerald-500/50 p-4 rounded-2xl flex items-center justify-between border border-emerald-400/50 backdrop-blur-sm">
               <div className="flex items-center space-x-4">
-                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-emerald-600 font-black text-2xl shadow-inner uppercase">
-                  {child.name ? child.name.charAt(0) : "?"}
+                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-emerald-600 font-black text-2xl shadow-inner uppercase overflow-hidden">
+                  {/* Dukung Foto Asli */}
+                  {child.photoUrl ? (
+                    <img src={child.photoUrl} alt={child.name} className="w-full h-full object-cover" />
+                  ) : (
+                    child.name ? child.name.charAt(0) : "?"
+                  )}
                 </div>
                 <div>
                   <p className="font-bold text-lg leading-tight capitalize">{child.name}</p>
