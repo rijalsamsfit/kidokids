@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { ChevronLeft, Lock, Star, X, Sparkles } from "lucide-react";
+import { useParams } from "next/navigation";
+import Link from "next/link"; // ✅ OBAT ANTI LEMOT: Navigasi instan
+import { ChevronLeft, Lock, Star } from "lucide-react";
 import { useGameStore } from "@/store/useGameStore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+// ✅ IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
 
 // --- DAFTARKAN GAME DI SINI ---
 const GAME_DB: any = {
@@ -40,20 +44,15 @@ const GAME_DB: any = {
 };
 
 export default function LevelMap() {
-  const router = useRouter();
   const params = useParams();
   const gameId = params.gameId as string;
   const gameInfo = GAME_DB[gameId];
 
-  // ✅ UPDATE: Kita buang parentPlan dari Zustand, murni mengandalkan Database
   const { activeChildId } = useGameStore();
+  const { showAlert } = useModalStore(); // ✅ CUSTOM POP-UP
   
   const [currentProgressLevel, setCurrentProgressLevel] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
-  
-  // ✅ STATE BARU: Menyimpan status VIP yang ditarik real-time dari Firestore
   const [isPremium, setIsPremium] = useState(false);
 
   // Tarik data progress anak dan kasta Ortu dari Firebase
@@ -68,7 +67,7 @@ export default function LevelMap() {
           const progress = childData.gameProgress?.[gameId] || 0;
           setCurrentProgressLevel(progress + 1); 
 
-          // 2. ✅ LOGIKA BARU: Intip Laci Ortu pakai parentId dari data anak
+          // 2. Intip Laci Ortu pakai parentId dari data anak
           const parentId = childData.parentId;
           if (parentId) {
             const parentSnap = await getDoc(doc(db, "parents", parentId));
@@ -94,21 +93,31 @@ export default function LevelMap() {
     return <div className="p-10 text-center font-bold">Game tidak ditemukan!</div>;
   }
 
-  // Generate Array Level sesuai totalLevels
   const levels = Array.from({ length: gameInfo.totalLevels }, (_, i) => i + 1);
 
+  // ✅ LOGIKA PENEMPATAN ZIG-ZAG (S-CURVE)
+  const getZigZagClass = (levelNum: number) => {
+    const mod = levelNum % 4;
+    if (mod === 1) return "self-start ml-6";         // Kiri
+    if (mod === 2) return "self-center mr-12";       // Tengah agak Kiri
+    if (mod === 3) return "self-end mr-6";           // Kanan
+    if (mod === 0) return "self-center ml-12";       // Tengah agak Kanan
+    return "";
+  };
+
   return (
-    <div className={`min-h-screen bg-gradient-to-b ${gameInfo.theme} font-sans pb-10`}>
+    <div className={`min-h-screen bg-gradient-to-b ${gameInfo.theme} font-sans pb-20 relative`}>
       
       {/* Header Level Map */}
-      <div className="p-6 sticky top-0 z-20 bg-black/10 backdrop-blur-md">
+      <div className="p-6 sticky top-0 z-30 bg-black/10 backdrop-blur-md border-b border-white/10 shadow-sm">
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => router.replace("/child/games")}
+          {/* ✅ OBAT ANTI LEMOT: Pakai Link */}
+          <Link 
+            href="/child/games"
             className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors active:scale-90"
           >
             <ChevronLeft className="w-6 h-6 text-white" />
-          </button>
+          </Link>
           <div>
             <h1 className="text-2xl font-black text-white leading-tight">{gameInfo.title}</h1>
             <p className="text-white/80 text-xs font-bold">{gameInfo.description}</p>
@@ -116,63 +125,74 @@ export default function LevelMap() {
         </div>
       </div>
 
-      {/* Grid Level (Saga Map) */}
-      <div className="p-6 pt-10">
+      {/* Area Peta Zig-Zag */}
+      <div className="p-6 pt-12 relative max-w-sm mx-auto">
         {isLoading ? (
-          <div className="text-center text-white font-bold animate-pulse">Memuat Peta...</div>
+          <div className="text-center text-white font-bold animate-pulse">Membentangkan Peta...</div>
         ) : (
-          <div className="grid grid-cols-3 gap-6">
+          /* ✅ flex-col-reverse BIKIN LEVEL 1 ADA DI PALING BAWAH LAYAR */
+          <div className="flex flex-col-reverse relative gap-6 pb-12">
+            
+            {/* Garis Putus-Putus Dekoratif di Belakang */}
+            <div className="absolute top-10 bottom-10 left-1/2 w-0 border-l-4 border-dashed border-white/20 -translate-x-1/2 z-0 pointer-events-none"></div>
+
             {levels.map((levelNum) => {
               const isLockedByPremium = !isPremium && levelNum > gameInfo.freeLevels;
-              const isPlayable = levelNum <= currentProgressLevel && !isLockedByPremium;
               const isCompleted = levelNum < currentProgressLevel;
-              // Kunci Progress hanya berlaku jika levelnya gratis TAPI belum sampai
+              const isPlayable = levelNum === currentProgressLevel && !isLockedByPremium;
               const isLockedByProgress = levelNum > currentProgressLevel && !isLockedByPremium;
 
-              // Styling Dinamis berdasarkan Status Level
-              let btnStyle = "bg-white text-slate-300 border-b-4 border-slate-200"; // Default (Kunci Progress)
-              if (isLockedByPremium) btnStyle = "bg-slate-800 text-slate-500 border-b-4 border-slate-900"; // Kunci Premium
-              if (isPlayable) btnStyle = "bg-white text-rose-500 border-b-4 border-rose-200 hover:border-rose-300 active:border-b-0 active:translate-y-1 shadow-lg"; // Bisa Dimainkan
+              // Styling Bulatan Proporsional Berdasarkan Status
+              let btnStyle = "bg-white/50 text-white/50 border-b-4 border-white/20"; // Terkunci Progress (Belum sampe)
+              if (isLockedByPremium) btnStyle = "bg-slate-800 text-slate-500 border-b-4 border-slate-900 shadow-md"; // Gembok VIP
+              if (isPlayable) btnStyle = "bg-white text-rose-500 border-b-4 border-rose-300 shadow-xl animate-bounce"; // Siap Main
+              if (isCompleted) btnStyle = "bg-emerald-400 text-white border-b-4 border-emerald-600 shadow-md"; // Lulus
 
               return (
-                <div key={levelNum} className="flex flex-col items-center gap-2">
-                  <button
-                    // Jangan disable jika dikunci premium, agar bisa memunculkan Pop-Up
-                    disabled={isLockedByProgress}
-                    onClick={() => {
-                      if (isLockedByPremium) {
-                        setShowPremiumModal(true); // Panggil Pop-Up
-                      } else {
-                        router.push(`/child/games/${gameId}/${levelNum}`); // Masuk ke Level
+                <div key={levelNum} className={`flex flex-col items-center gap-2 z-10 ${getZigZagClass(levelNum)} relative group`}>
+                  
+                  {isPlayable && (
+                    <div className="absolute -top-3 text-[10px] font-black bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full z-20 shadow-sm animate-pulse">MULAI</div>
+                  )}
+
+                  <Link
+                    href={(!isLockedByProgress && !isLockedByPremium) ? `/child/games/${gameId}/${levelNum}` : "#"}
+                    onClick={(e) => {
+                      if (isLockedByProgress) {
+                        e.preventDefault();
+                      } else if (isLockedByPremium) {
+                        e.preventDefault();
+                        // ✅ PANGGIL POP-UP KIDO BUAT PESTER POWER
+                        showAlert(
+                          "Level VIP Dikunci! 🔒",
+                          "Wah, petualangan ini masih digembok! Minta tolong Ayah atau Ibu pakai Kunci VIP-nya ya!"
+                        );
                       }
                     }}
-                    className={`w-20 h-20 rounded-3xl flex items-center justify-center transition-all ${btnStyle} relative overflow-hidden group`}
+                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${btnStyle} relative overflow-hidden`}
                   >
-                    {isPlayable && (
-                      <>
-                        <div className="text-3xl font-black">{levelNum}</div>
-                        <div className="absolute inset-0 bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      </>
+                    {(isPlayable || isCompleted) && (
+                      <div className="text-2xl font-black z-10">{levelNum}</div>
                     )}
 
                     {isLockedByProgress && (
-                      <div className="text-2xl font-black text-slate-300">{levelNum}</div>
+                      <div className="text-xl font-black">{levelNum}</div>
                     )}
 
                     {isLockedByPremium && (
                       <div className="flex flex-col items-center">
-                        <Lock className="w-6 h-6 text-amber-500 mb-1" />
-                        <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest">VIP</div>
+                        <Lock className="w-5 h-5 text-amber-500 mb-0.5" />
+                        <div className="text-[9px] font-black text-amber-500 uppercase tracking-widest">VIP</div>
                       </div>
                     )}
-                  </button>
+                  </Link>
                   
                   {/* Visual Bintang (Kalau udah lulus) */}
-                  <div className="flex gap-0.5">
+                  <div className="flex gap-0.5 bg-black/10 px-2 py-1 rounded-full backdrop-blur-sm">
                     {[1, 2, 3].map((star) => (
                       <Star 
                         key={star} 
-                        className={`w-3 h-3 ${isCompleted ? "text-amber-400 fill-amber-400" : "text-white/20"}`} 
+                        className={`w-3 h-3 ${isCompleted ? "text-yellow-300 fill-yellow-300" : "text-white/20"}`} 
                       />
                     ))}
                   </div>
@@ -182,43 +202,6 @@ export default function LevelMap() {
           </div>
         )}
       </div>
-
-      {/* MODAL VIP PESTER POWER */}
-      {showPremiumModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300 relative border-4 border-indigo-100">
-            {/* Tombol Tutup X */}
-            <button
-              onClick={() => setShowPremiumModal(false)}
-              className="absolute top-4 right-4 w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 active:scale-90 transition-all"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            {/* Ikon Gembok Besar */}
-            <div className="w-24 h-24 bg-gradient-to-br from-amber-200 to-amber-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-300/50">
-              <Lock className="w-12 h-12 text-amber-800" />
-            </div>
-
-            {/* Teks Pesan */}
-            <h2 className="text-2xl font-black text-slate-800 text-center mb-3">
-              Level VIP Dikunci!
-            </h2>
-            <p className="text-slate-500 font-bold text-center leading-relaxed mb-8 text-lg">
-              Wah, petualangan ini masih digembok! Minta tolong Ayah atau Ibu buat membukanya ya! <Sparkles className="w-5 h-5 inline-block text-amber-500 ml-1"/>
-            </p>
-
-            {/* Tombol Oke */}
-            <button
-              onClick={() => setShowPremiumModal(false)}
-              className="w-full bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 font-black text-xl py-4 rounded-2xl active:scale-95 transition-all shadow-lg shadow-amber-500/30 border-b-4 border-amber-600"
-            >
-              Oke, Mengerti!
-            </button>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
