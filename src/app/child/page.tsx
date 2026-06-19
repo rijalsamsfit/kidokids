@@ -16,7 +16,8 @@ import { useModalStore } from "@/store/useModalStore";
 export default function ChildDashboard() {
   const router = useRouter();
   
-  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, clearActiveChild, parentPlan } = useGameStore(); 
+  // ✅ UPDATE: Tambahkan tarikan data 'streak' dari memori
+  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, clearActiveChild, parentPlan, streak } = useGameStore() as any; 
   const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
 
   // AMBIL FUNGSI CUSTOM ALERT & CONFIRM
@@ -27,7 +28,7 @@ export default function ChildDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [showBadgeAlert, setShowBadgeAlert] = useState(false);
   
-  // ✅ 1. STATE UNTUK MODAL EDIT ANAK & FORM NAMA
+  // STATE UNTUK MODAL EDIT ANAK & FORM NAMA
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -114,13 +115,11 @@ export default function ChildDashboard() {
     );
   };
 
-  // ✅ 2. FUNGSI UNTUK MEMBUKA MODAL EDIT
   const handleOpenEditModal = () => {
     setEditName(activeChildName || "");
     setIsEditModalOpen(true);
   };
 
-  // ✅ 3. FUNGSI UNTUK MENYIMPAN NAMA BARU
   const handleSaveName = async () => {
     if (!editName.trim() || !activeChildId) return;
     setIsSaving(true);
@@ -137,18 +136,13 @@ export default function ChildDashboard() {
     }
   };
 
-  // ✅ 4. STRATEGI PESTER POWER VIP
   const handlePhotoClick = () => {
-    // Kalau kasta Ortu yang dititipkan adalah 'basic'
     if (parentPlan === "basic") {
       showAlert(
         "Khusus VIP! 👑", 
         "Wah, fitur Ganti Foto Wajah hanya untuk Pahlawan VIP. Kasih tahu Ayah/Bunda buat buka kuncinya ya!"
       );
     } else {
-      // Jika VIP, anak diarahkan untuk minta tolong Ortu lewat Dasbor mereka
-      // Karena agak ribet ngatur upload file lewat HP anak langsung,
-      // kita alihkan "Beban Kerja" ini ke Ortu.
       showAlert(
         "Ganti Foto Wajah 📸", 
         "Pahlawan VIP! Minta tolong Ayah/Bunda untuk memilihkan dan mengganti fotomu dari aplikasi mereka ya!"
@@ -197,12 +191,21 @@ export default function ChildDashboard() {
             </button>
           </div>
 
-          <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100">
-            <div className="flex items-center space-x-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex-1 mr-2 justify-center">
+          <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100 gap-2">
+            {/* ✅ 1. KOTAK API (STREAK) - SEKARANG NANGKRING DI KIRI */}
+            <div className="flex items-center space-x-1.5 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-200 shadow-inner">
+              <Flame className="w-5 h-5 text-orange-500 fill-orange-500 animate-pulse" />
+              <span className="font-extrabold text-orange-700">{streak || 0}</span>
+            </div>
+
+            {/* ✅ 2. KOTAK WAKTU (TIMER) - DI TENGAH */}
+            <div className="flex items-center space-x-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex-1 justify-center">
               <Timer className="w-4 h-4 text-slate-400" />
               <span className="font-extrabold text-slate-600 text-sm tracking-widest">{formattedTime}</span>
             </div>
-            <div className="flex items-center space-x-1.5 bg-amber-100 px-4 py-1.5 rounded-full border border-amber-200 shadow-inner">
+
+            {/* ✅ 3. KOTAK KOIN - DI KANAN */}
+            <div className="flex items-center space-x-1.5 bg-amber-100 px-3 py-1.5 rounded-full border border-amber-200 shadow-inner">
               <Coins className="w-5 h-5 text-amber-500" />
               <span className="font-extrabold text-amber-700">{coins}</span>
             </div>
@@ -220,7 +223,7 @@ export default function ChildDashboard() {
           <div className="absolute top-4 left-4 animate-pulse"><Star className="w-6 h-6 text-white/50" /></div>
           <div className="absolute bottom-10 right-6 animate-pulse delay-150"><Star className="w-8 h-8 text-white/40" /></div>
 
-          {/* ✅ 5. AVATAR YANG BISA DI-KLIK UNTUK MEMBUKA MODAL EDIT */}
+          {/* AVATAR YANG BISA DI-KLIK UNTUK MEMBUKA MODAL EDIT */}
           <div 
             onClick={handleOpenEditModal}
             className="relative mb-5 transform transition-transform hover:scale-105 active:scale-95 cursor-pointer group"

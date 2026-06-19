@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { ArrowLeft, User, Lock, Delete, Loader2 } from "lucide-react";
 import { useGameStore } from "@/store/useGameStore";
-
-// ✅ 1. IMPORT PABRIK POP-UP KIDO
 import { useModalStore } from "@/store/useModalStore";
 
 type PlanType = "basic" | "pro" | "annual" | "lifetime";
@@ -15,33 +13,28 @@ type PlanType = "basic" | "pro" | "annual" | "lifetime";
 export default function ChildLogin() {
   const router = useRouter();
   
+  // Ambil fungsi setActiveChild dari store (sudah di-update tipenya)
   const setActiveChild = useGameStore((state) => state.setActiveChild);
-  
-  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT
   const { showAlert } = useModalStore();
 
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [parentPlan, setParentPlan] = useState<PlanType>("basic");
   const [isLoading, setIsLoading] = useState(true);
   
-  // State untuk alur login PIN
   const [selectedChild, setSelectedChild] = useState<any>(null);
   const [pin, setPin] = useState("");
   const [isError, setIsError] = useState(false);
 
-  // Cek apakah HP ini sudah pernah dipakai login oleh orang tua
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         try {
-          // Tarik Data Kasta Orang Tua Dulu
           const parentRef = doc(db, "parents", user.uid);
           const parentSnap = await getDoc(parentRef);
           if (parentSnap.exists()) {
             setParentPlan(parentSnap.data().subscriptionPlan as PlanType || "basic");
           }
 
-          // Tarik data anak-anak yang terhubung
           const q = query(collection(db, "children"), where("parentId", "==", user.uid));
           const querySnapshot = await getDocs(q);
           const childrenList = querySnapshot.docs.map(doc => ({
@@ -51,7 +44,6 @@ export default function ChildLogin() {
           setChildrenData(childrenList);
         } catch (error) {
           console.error("Gagal menarik data:", error);
-          // ✅ 3. TAMPILKAN CUSTOM ALERT JIKA GAGAL LOAD DATA
           showAlert("Ups! Koneksi Terputus", "Gagal memanggil data profilmu. Coba cek internetnya dan muat ulang ya!");
         }
       }
@@ -61,14 +53,11 @@ export default function ChildLogin() {
     return () => unsubscribe();
   }, [showAlert]);
 
-  // Fungsi Keypad Custom
   const handleKeyPress = (num: string) => {
     setIsError(false);
     if (pin.length < 4) {
       const newPin = pin + num;
       setPin(newPin);
-      
-      // Auto-submit saat digit ke-4 ditekan
       if (newPin.length === 4) {
         verifyPin(newPin);
       }
@@ -80,11 +69,47 @@ export default function ChildLogin() {
     setPin(pin.slice(0, -1));
   };
 
-  const verifyPin = (enteredPin: string) => {
+  // ✅ LOGIKA MESIN WAKTU STREAK (Update Firestore & Store)
+  const verifyPin = async (enteredPin: string) => {
     const correctPin = selectedChild.pin || "1234"; 
 
     if (enteredPin === correctPin) {
-      // Titipkan parentPlan ke dalam memori anak!
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      let currentStreak = selectedChild.streak || 0;
+      let lastStreakDate = selectedChild.lastStreakDate || null;
+      let newStreak = currentStreak;
+
+      // Logika Streak:
+      // 1. Jika main kemarin -> Streak nambah 1
+      // 2. Jika baru main hari ini -> Streak tetap (tidak dobel)
+      // 3. Jika bolos/tidak main kemarin -> Streak reset ke 1
+      if (lastStreakDate === yesterdayStr) {
+        newStreak = currentStreak + 1;
+      } else if (lastStreakDate === todayStr) {
+        newStreak = currentStreak;
+      } else {
+        newStreak = 1;
+      }
+
+      // Update ke Firebase jika tanggal berubah
+      if (lastStreakDate !== todayStr) {
+        try {
+          await updateDoc(doc(db, "children", selectedChild.id), {
+            streak: newStreak,
+            lastStreakDate: todayStr
+          });
+        } catch (error) {
+          console.error("Gagal update streak ke Cloud:", error);
+        }
+      }
+
+      // ✅ Kirim data ke Zustand
       setActiveChild(
         selectedChild.id,
         selectedChild.name,
@@ -93,16 +118,16 @@ export default function ChildLogin() {
         selectedChild.coins || 0,
         selectedChild.missionsCompleted || 0,
         selectedChild.unlockedBadges || [],
-        parentPlan 
+        parentPlan,
+        newStreak,
+        todayStr
       );
       
-      // Lempar ke Dashboard Anak
       router.push("/child");
     } else {
-      // PIN Salah (Tetap gunakan UX warna merah & getar, ini udah bagus banget)
       setIsError(true);
       setTimeout(() => {
-        setPin(""); // Kosongkan PIN setelah 0.5 detik biar anak bisa coba lagi
+        setPin(""); 
         setIsError(false);
       }, 500);
     }
@@ -116,7 +141,6 @@ export default function ChildLogin() {
     );
   }
 
-  // Jika Orang Tua belum pernah login di HP ini
   if (childrenData.length === 0) {
     return (
       <div className="min-h-screen bg-blue-50 flex flex-col items-center justify-center p-6 text-center">
@@ -141,7 +165,6 @@ export default function ChildLogin() {
     <div className="min-h-screen bg-blue-50 p-6 flex flex-col items-center justify-center">
       <div className="w-full max-w-sm">
         
-        {/* Tombol Kembali */}
         <button 
           onClick={() => selectedChild ? setSelectedChild(null) : router.push("/login")}
           className="p-3 bg-white text-slate-500 hover:text-slate-800 rounded-full shadow-sm mb-8 active:scale-95 transition-all"
@@ -149,7 +172,6 @@ export default function ChildLogin() {
           <ArrowLeft className="w-6 h-6" />
         </button>
 
-        {/* TAMPILAN 1: PILIH PROFIL ANAK */}
         {!selectedChild ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
             <h1 className="text-3xl font-black text-slate-800 text-center mb-8">
@@ -163,7 +185,6 @@ export default function ChildLogin() {
                   onClick={() => setSelectedChild(child)}
                   className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-transparent hover:border-blue-300 hover:shadow-md transition-all flex flex-col items-center group active:scale-95"
                 >
-                  {/* ✅ 4. BONUS VIP: NAMPILIN FOTO WAJAH ASLI ANAK */}
                   <div className="w-20 h-20 bg-blue-100 text-blue-500 rounded-[1.5rem] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform overflow-hidden shadow-sm">
                     {child.photoUrl ? (
                       <img src={child.photoUrl} alt={child.name} className="w-full h-full object-cover" />
@@ -177,11 +198,7 @@ export default function ChildLogin() {
             </div>
           </div>
         ) : (
-
-        /* TAMPILAN 2: MASUKKAN PIN ANAK */
           <div className="animate-in slide-in-from-right-8 duration-300 flex flex-col items-center">
-            
-            {/* Foto Profil Kecil Pas Masukin PIN */}
             <div className="w-16 h-16 bg-blue-100 rounded-full mb-3 overflow-hidden shadow-sm border-2 border-white">
                {selectedChild.photoUrl ? (
                  <img src={selectedChild.photoUrl} alt={selectedChild.name} className="w-full h-full object-cover" />
@@ -195,7 +212,6 @@ export default function ChildLogin() {
             <h2 className="text-2xl font-black text-slate-800 mb-2">Hai, {selectedChild.name}!</h2>
             <p className="text-slate-500 font-medium mb-8">Masukkan PIN rahasiamu</p>
 
-            {/* Kotak PIN Indicator */}
             <div className={`flex space-x-4 mb-10 ${isError ? 'animate-pulse' : ''}`}>
               {[0, 1, 2, 3].map((index) => (
                 <div 
@@ -211,10 +227,8 @@ export default function ChildLogin() {
               ))}
             </div>
 
-            {/* Pesan Eror */}
             {isError && <p className="text-rose-500 font-bold mb-4 animate-shake">PIN Salah, coba lagi!</p>}
 
-            {/* Keypad Angka Custom */}
             <div className="grid grid-cols-3 gap-4 w-full max-w-[280px]">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
@@ -242,7 +256,6 @@ export default function ChildLogin() {
                 </button>
               </div>
             </div>
-
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// ✅ UPDATE: Import tipe PlanType agar seragam
+// ✅ Tetap menjaga tipe PlanType
 type PlanType = "basic" | "pro" | "annual" | "lifetime";
 
 // Mendefinisikan tipe data untuk State Game KIDO
@@ -12,6 +12,7 @@ interface GameState {
   level: number;
   coins: number;
   streak: number;
+  lastStreakDate: string | null; // ✅ Laci baru untuk menyimpan tanggal terakhir main
   
   // Laci untuk sistem Lemari Trofi
   missionsCompleted: number;
@@ -25,8 +26,19 @@ interface GameState {
   
   // Fungsi-fungsi (Actions)
   setHasHydrated: (state: boolean) => void;
-  // ✅ UPDATE: setActiveChild sekarang menerima parentPlan
-  setActiveChild: (id: string, name: string, xp: number, level: number, coins: number, missionsCompleted?: number, unlockedBadges?: string[], parentPlan?: PlanType) => void;
+  // ✅ UPDATE: setActiveChild sekarang menerima parentPlan, streak, dan lastStreakDate
+  setActiveChild: (
+    id: string, 
+    name: string, 
+    xp: number, 
+    level: number, 
+    coins: number, 
+    missionsCompleted?: number, 
+    unlockedBadges?: string[], 
+    parentPlan?: PlanType, 
+    streak?: number,
+    lastStreakDate?: string | null
+  ) => void;
   clearActiveChild: () => void;
   addXP: (amount: number) => void;
   addCoins: (amount: number) => void;
@@ -45,16 +57,17 @@ export const useGameStore = create<GameState>()(
       level: 1,
       coins: 0,
       streak: 0,
+      lastStreakDate: null, // ✅ Awalnya null
       missionsCompleted: 0,
       unlockedBadges: [],
-      parentPlan: "basic", // ✅ Nilai awal default selalu basic
+      parentPlan: "basic", 
       hasHydrated: false, 
 
       // Setter untuk status hidratasi
       setHasHydrated: (state) => set({ hasHydrated: state }),
 
-      // ✅ UPDATE: Menyimpan kasta orang tua saat anak login
-      setActiveChild: (id, name, xp, level, coins, missionsCompleted = 0, unlockedBadges = [], parentPlan = "basic") => set({
+      // ✅ UPDATE: Menangkap data streak dan lastStreakDate saat anak login
+      setActiveChild: (id, name, xp, level, coins, missionsCompleted = 0, unlockedBadges = [], parentPlan = "basic", streak = 0, lastStreakDate = null) => set({
         activeChildId: id,
         activeChildName: name,
         xp: xp || 0,
@@ -62,7 +75,9 @@ export const useGameStore = create<GameState>()(
         coins: coins || 0,
         missionsCompleted: missionsCompleted || 0,
         unlockedBadges: unlockedBadges || [],
-        parentPlan: parentPlan
+        parentPlan: parentPlan,
+        streak: streak,
+        lastStreakDate: lastStreakDate
       }),
 
       // Saat anak logout / kembali ke layar pilih profil
@@ -73,6 +88,7 @@ export const useGameStore = create<GameState>()(
         level: 1,
         coins: 0,
         streak: 0,
+        lastStreakDate: null,
         missionsCompleted: 0,
         unlockedBadges: [],
         parentPlan: "basic" // ✅ Reset kembali ke basic saat logout
@@ -109,6 +125,7 @@ export const useGameStore = create<GameState>()(
         level: 1, 
         coins: 0, 
         streak: 0,
+        lastStreakDate: null,
         missionsCompleted: 0,
         unlockedBadges: [],
         parentPlan: "basic"
