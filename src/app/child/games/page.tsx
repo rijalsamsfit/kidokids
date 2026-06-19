@@ -34,7 +34,8 @@ export default function GameHub() {
       
       // Jeda 800ms biar animasinya kerasa, baru pindah halaman
       setTimeout(() => {
-        router.push("/child/games/emotion"); // Mengarah ke Peta Level
+        // ✅ UPDATE: Sekarang mengarah ke Lobi Dunia 1, bukan langsung ke Tebak Perasaan!
+        router.push("/child/games/world-1"); 
       }, 800);
       
     } else {
