@@ -10,11 +10,17 @@ import { db } from "@/lib/firebase";
 import { Trophy, Coins, Star, Zap, Timer, Loader2, LogOut, Gamepad2, Sparkles, Flame, Play } from "lucide-react"; 
 import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
+
 export default function ChildDashboard() {
   const router = useRouter();
   
   const { activeChildId, activeChildName, xp, level, coins, hasHydrated, clearActiveChild } = useGameStore(); 
   const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
+
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT & CONFIRM
+  const { showAlert, showConfirm } = useModalStore();
 
   const [mounted, setMounted] = useState(false);
   const [cloudProfile, setCloudProfile] = useState<any>(null);
@@ -30,7 +36,6 @@ export default function ChildDashboard() {
     if (!hasHydrated) return;
 
     if (!activeChildId) {
-      // ✅ UPDATE: Arahkan ke Layar Pemilihan Profil (Netflix Style)
       router.replace("/profiles");
       return;
     }
@@ -72,7 +77,11 @@ export default function ChildDashboard() {
           
           if (prevMission && prevMission.status !== 'approved' && mission.status === 'approved') {
             grantBonusTime(10);
-            alert(`Hore! Bukti misimu "${mission.title}" disetujui! Waktu mainmu ditambah 10 Menit! 🎉`);
+            // ✅ 3. GANTI ALERT BAWAAN JADI CUSTOM ALERT KIDO
+            showAlert(
+              "Misi Disetujui! 🌟", 
+              `Hore! Bukti misimu "${mission.title}" disetujui! Waktu mainmu ditambah 10 Menit! 🎉`
+            );
           }
         });
       }
@@ -85,15 +94,20 @@ export default function ChildDashboard() {
       if (unsubProfile) unsubProfile();
       if (unsubMissions) unsubMissions();
     };
-  }, [activeChildId, router, grantBonusTime, hasHydrated]); 
+  }, [activeChildId, router, grantBonusTime, hasHydrated, showAlert]); 
 
-  // ✅ UPDATE: Logika Logout Ganti Pemain
+  // ✅ 4. GANTI CONFIRM BAWAAN JADI CUSTOM CONFIRM KIDO
   const handleLogout = () => {
-    if (window.confirm("Apakah kamu ingin keluar dan ganti Pahlawan?")) {
-      clearActiveChild(); 
-      // Lempar kembali ke Layar Pemilihan Profil (Netflix Style)
-      router.replace("/profiles"); 
-    }
+    showConfirm(
+      "Ganti Pahlawan? 🦸‍♂️",
+      "Apakah kamu ingin keluar dan ganti Pahlawan?",
+      () => {
+        clearActiveChild(); 
+        router.replace("/profiles"); 
+      },
+      "Ya, Keluar",
+      "Batal"
+    );
   };
 
   if (!mounted || !hasHydrated || (isLoading && !cloudProfile)) {
@@ -112,13 +126,12 @@ export default function ChildDashboard() {
   const progressPercentage = Math.min(100, Math.max(0, (xpRequired > 0 ? (xpProgress / xpRequired) * 100 : 0)));
 
   return (
-    // 1. MAIN CONTAINER: Full screen, flex-col, no scroll, safe bottom padding
     <div className="h-[100dvh] bg-blue-50 font-sans relative flex flex-col overflow-hidden pb-24">
       
       {/* {isSleepMode && <LockScreen type="sleep" />} */}
       {/* {!isSleepMode && isTimeUp && <LockScreen type="timeUp" />} */}
 
-      {/* 2. TOP HUD: Fixed at the top */}
+      {/* TOP HUD: Fixed at the top */}
       <div className="flex-none bg-white p-4 rounded-b-3xl shadow-sm z-10 relative">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -154,7 +167,7 @@ export default function ChildDashboard() {
         </div>
       </div>
 
-      {/* 3. CENTER STAGE: Flex-1 pushes content to middle and bottom portal down */}
+      {/* CENTER STAGE: Flex-1 pushes content to middle and bottom portal down */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-6">
         {/* Glow effect behind avatar */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -165,8 +178,15 @@ export default function ChildDashboard() {
           <div className="absolute top-4 left-4 animate-pulse"><Star className="w-6 h-6 text-white/50" /></div>
           <div className="absolute bottom-10 right-6 animate-pulse delay-150"><Star className="w-8 h-8 text-white/40" /></div>
 
-          <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-5 shadow-2xl border-4 border-blue-100 relative transform transition-transform hover:scale-105 active:scale-95 cursor-pointer">
-            <div className="text-6xl drop-shadow-md">🦸‍♂️</div>
+          {/* ✅ 5. BONUS: FOTO WAJAH ANAK SEKARANG TAMPIL DI SINI */}
+          <div className="relative mb-5 transform transition-transform hover:scale-105 active:scale-95 cursor-pointer">
+            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-blue-100 overflow-hidden">
+              {cloudProfile?.photoUrl ? (
+                <img src={cloudProfile.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="text-6xl drop-shadow-md">🦸‍♂️</div>
+              )}
+            </div>
             <div className="absolute -bottom-2 -right-2 bg-amber-400 text-white font-bold p-2.5 rounded-full border-4 border-white shadow-lg animate-bounce">
               <Zap className="w-5 h-5 fill-white" />
             </div>
@@ -190,9 +210,8 @@ export default function ChildDashboard() {
         </div>
       </div>
 
-      {/* 4. BOTTOM PORTAL: The main CTA for games */}
+      {/* BOTTOM PORTAL: The main CTA for games */}
       <div className="flex-none px-6 z-10 w-full max-w-md mx-auto">
-        {/* Quick Motivation Status */}
         <div className="mb-4 text-center">
           <p className="text-[13px] font-bold text-blue-600/80 flex items-center justify-center gap-1.5">
             <Flame className="w-4 h-4 text-orange-500" />
@@ -200,7 +219,6 @@ export default function ChildDashboard() {
           </p>
         </div>
 
-        {/* 3D Chunky Button for Game Arena */}
         <button 
           onClick={() => router.push("/child/games")}
           className="w-full bg-indigo-500 hover:bg-indigo-400 text-white border-b-4 border-indigo-700 active:border-b-0 active:translate-y-1 rounded-[1.5rem] p-4 flex items-center justify-between transition-all shadow-lg shadow-indigo-200"
