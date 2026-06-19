@@ -7,25 +7,30 @@ import LockScreen from "@/components/LockScreen";
 import { useScreenTime } from "@/hooks/useScreenTime";
 import { useGameStore } from "@/store/useGameStore";
 import { db } from "@/lib/firebase"; 
-import { Trophy, Coins, Star, Zap, Timer, Loader2, LogOut, Gamepad2, Sparkles, Flame, Play } from "lucide-react"; 
-import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
+import { Trophy, Coins, Star, Zap, Timer, Loader2, LogOut, Gamepad2, Sparkles, Flame, Play, Edit3, X, Crown, Camera } from "lucide-react"; 
+import { onSnapshot, doc, collection, query, where, updateDoc } from "firebase/firestore";
 
-// ✅ 1. IMPORT PABRIK POP-UP KIDO
+// IMPORT PABRIK POP-UP KIDO
 import { useModalStore } from "@/store/useModalStore";
 
 export default function ChildDashboard() {
   const router = useRouter();
   
-  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, clearActiveChild } = useGameStore(); 
+  const { activeChildId, activeChildName, xp, level, coins, hasHydrated, clearActiveChild, parentPlan } = useGameStore(); 
   const { isSleepMode, isTimeUp, formattedTime, grantBonusTime } = useScreenTime(30);
 
-  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT & CONFIRM
+  // AMBIL FUNGSI CUSTOM ALERT & CONFIRM
   const { showAlert, showConfirm } = useModalStore();
 
   const [mounted, setMounted] = useState(false);
   const [cloudProfile, setCloudProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showBadgeAlert, setShowBadgeAlert] = useState(false);
+  
+  // ✅ 1. STATE UNTUK MODAL EDIT ANAK & FORM NAMA
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const prevMissionsRef = useRef<any[]>([]);
   const prevBadgesRef = useRef<string[] | null>(null);
@@ -61,6 +66,7 @@ export default function ChildDashboard() {
           xp: data.xp, 
           level: data.level, 
           coins: data.coins,
+          activeChildName: data.name, // Otomatis update nama di Zustand kalau diubah
           missionsCompleted: data.missionsCompleted || 0,
           unlockedBadges: currentBadges
         });
@@ -77,7 +83,6 @@ export default function ChildDashboard() {
           
           if (prevMission && prevMission.status !== 'approved' && mission.status === 'approved') {
             grantBonusTime(10);
-            // ✅ 3. GANTI ALERT BAWAAN JADI CUSTOM ALERT KIDO
             showAlert(
               "Misi Disetujui! 🌟", 
               `Hore! Bukti misimu "${mission.title}" disetujui! Waktu mainmu ditambah 10 Menit! 🎉`
@@ -96,7 +101,6 @@ export default function ChildDashboard() {
     };
   }, [activeChildId, router, grantBonusTime, hasHydrated, showAlert]); 
 
-  // ✅ 4. GANTI CONFIRM BAWAAN JADI CUSTOM CONFIRM KIDO
   const handleLogout = () => {
     showConfirm(
       "Ganti Pahlawan? 🦸‍♂️",
@@ -108,6 +112,48 @@ export default function ChildDashboard() {
       "Ya, Keluar",
       "Batal"
     );
+  };
+
+  // ✅ 2. FUNGSI UNTUK MEMBUKA MODAL EDIT
+  const handleOpenEditModal = () => {
+    setEditName(activeChildName || "");
+    setIsEditModalOpen(true);
+  };
+
+  // ✅ 3. FUNGSI UNTUK MENYIMPAN NAMA BARU
+  const handleSaveName = async () => {
+    if (!editName.trim() || !activeChildId) return;
+    setIsSaving(true);
+    try {
+      await updateDoc(doc(db, "children", activeChildId), {
+        name: editName.trim()
+      });
+      showAlert("Mantap! 🌟", "Nama panggilan barumu berhasil disimpan!");
+      setIsEditModalOpen(false);
+    } catch (error) {
+      showAlert("Gagal", "Duh, gagal menyimpan nama. Coba lagi nanti ya.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ✅ 4. STRATEGI PESTER POWER VIP
+  const handlePhotoClick = () => {
+    // Kalau kasta Ortu yang dititipkan adalah 'basic'
+    if (parentPlan === "basic") {
+      showAlert(
+        "Khusus VIP! 👑", 
+        "Wah, fitur Ganti Foto Wajah hanya untuk Pahlawan VIP. Kasih tahu Ayah/Bunda buat buka kuncinya ya!"
+      );
+    } else {
+      // Jika VIP, anak diarahkan untuk minta tolong Ortu lewat Dasbor mereka
+      // Karena agak ribet ngatur upload file lewat HP anak langsung,
+      // kita alihkan "Beban Kerja" ini ke Ortu.
+      showAlert(
+        "Ganti Foto Wajah 📸", 
+        "Pahlawan VIP! Minta tolong Ayah/Bunda untuk memilihkan dan mengganti fotomu dari aplikasi mereka ya!"
+      );
+    }
   };
 
   if (!mounted || !hasHydrated || (isLoading && !cloudProfile)) {
@@ -128,9 +174,6 @@ export default function ChildDashboard() {
   return (
     <div className="h-[100dvh] bg-blue-50 font-sans relative flex flex-col overflow-hidden pb-24">
       
-      {/* {isSleepMode && <LockScreen type="sleep" />} */}
-      {/* {!isSleepMode && isTimeUp && <LockScreen type="timeUp" />} */}
-
       {/* TOP HUD: Fixed at the top */}
       <div className="flex-none bg-white p-4 rounded-b-3xl shadow-sm z-10 relative">
         <div className="flex flex-col gap-3">
@@ -167,9 +210,8 @@ export default function ChildDashboard() {
         </div>
       </div>
 
-      {/* CENTER STAGE: Flex-1 pushes content to middle and bottom portal down */}
+      {/* CENTER STAGE */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-6">
-        {/* Glow effect behind avatar */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
            <div className="w-64 h-64 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
         </div>
@@ -178,21 +220,28 @@ export default function ChildDashboard() {
           <div className="absolute top-4 left-4 animate-pulse"><Star className="w-6 h-6 text-white/50" /></div>
           <div className="absolute bottom-10 right-6 animate-pulse delay-150"><Star className="w-8 h-8 text-white/40" /></div>
 
-          {/* ✅ 5. BONUS: FOTO WAJAH ANAK SEKARANG TAMPIL DI SINI */}
-          <div className="relative mb-5 transform transition-transform hover:scale-105 active:scale-95 cursor-pointer">
-            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-blue-100 overflow-hidden">
+          {/* ✅ 5. AVATAR YANG BISA DI-KLIK UNTUK MEMBUKA MODAL EDIT */}
+          <div 
+            onClick={handleOpenEditModal}
+            className="relative mb-5 transform transition-transform hover:scale-105 active:scale-95 cursor-pointer group"
+          >
+            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-blue-100 overflow-hidden relative">
               {cloudProfile?.photoUrl ? (
                 <img src={cloudProfile.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <div className="text-6xl drop-shadow-md">🦸‍♂️</div>
               )}
+              {/* Overlay Tipis pas Hover biar sadar bisa diklik */}
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Edit3 className="w-8 h-8 text-white" />
+              </div>
             </div>
             <div className="absolute -bottom-2 -right-2 bg-amber-400 text-white font-bold p-2.5 rounded-full border-4 border-white shadow-lg animate-bounce">
               <Zap className="w-5 h-5 fill-white" />
             </div>
           </div>
 
-          <h2 className="text-2xl font-extrabold text-white mb-3 tracking-wide drop-shadow-sm capitalize text-center">
+          <h2 className="text-2xl font-extrabold text-white mb-3 tracking-wide drop-shadow-sm capitalize text-center cursor-pointer hover:text-blue-100 transition-colors" onClick={handleOpenEditModal}>
             {activeChildName || "Pahlawan"} Hebat!
           </h2>
 
@@ -210,7 +259,7 @@ export default function ChildDashboard() {
         </div>
       </div>
 
-      {/* BOTTOM PORTAL: The main CTA for games */}
+      {/* BOTTOM PORTAL */}
       <div className="flex-none px-6 z-10 w-full max-w-md mx-auto">
         <div className="mb-4 text-center">
           <p className="text-[13px] font-bold text-blue-600/80 flex items-center justify-center gap-1.5">
@@ -239,6 +288,63 @@ export default function ChildDashboard() {
       </div>
 
       <Navigation />
+
+      {/* ========================================= */}
+      {/* 🔮 MODAL EDIT PROFIL KHUSUS ANAK 🔮 */}
+      {/* ========================================= */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white p-8 rounded-[2rem] w-full max-w-sm shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black text-xl text-slate-800">Edit Pahlawan</h3>
+              <button onClick={() => setIsEditModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X className="w-5 h-5 text-slate-500" /></button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* TOMBOL GANTI FOTO (UMPAN PESTER POWER) */}
+              <button 
+                onClick={handlePhotoClick}
+                className="w-full bg-blue-50 border-2 border-blue-100 hover:border-blue-300 p-4 rounded-2xl flex items-center justify-between transition-colors active:scale-95 group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center text-blue-600">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-black text-blue-800 text-sm">Ganti Foto Wajah</p>
+                    <p className="text-[10px] font-bold text-blue-500">Minta tolong Ayah/Bunda</p>
+                  </div>
+                </div>
+                {parentPlan === "basic" && (
+                   <Crown className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+                )}
+              </button>
+
+              {/* INPUT GANTI NAMA */}
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Nama Panggilan Barumu</label>
+                <input 
+                  type="text" 
+                  value={editName} 
+                  onChange={(e) => setEditName(e.target.value)} 
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-xl text-slate-800 text-center outline-none focus:border-blue-500 focus:bg-white transition-all capitalize" 
+                  placeholder="Ketik namamu..."
+                  maxLength={12}
+                />
+              </div>
+
+              {/* TOMBOL SIMPAN */}
+              <button 
+                onClick={handleSaveName} 
+                disabled={isSaving || !editName.trim()} 
+                className="w-full py-4 mt-2 bg-blue-600 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-black flex justify-center items-center hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 active:scale-95"
+              >
+                {isSaving ? <Loader2 className="w-6 h-6 animate-spin" /> : "Simpan Namaku!"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* POP-UP SELEBRASI BADGE BARU */}
       {showBadgeAlert && (
