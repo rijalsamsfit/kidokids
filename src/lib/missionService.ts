@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, doc, updateDoc, query, where, increment, getDoc } from "firebase/firestore"; 
+import { collection, addDoc, getDocs, doc, updateDoc, query, where, getDoc } from "firebase/firestore"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"; 
 import { db, auth, storage } from "./firebase"; 
 
@@ -7,7 +7,6 @@ const favoriteMissionsCollection = collection(db, "favorite_missions");
 
 /**
  * 1. Fungsi untuk Orang Tua: Mengirim Misi Baru ke Cloud & Simpan Favorit
- * ✅ DIUPDATE: Menerima childId agar misi masuk ke profil anak yang tepat
  */
 export const addMissionToDB = async (title: string, xpReward: number, time: string, isFavorite: boolean = false, childId: string) => {
   try {
@@ -15,24 +14,22 @@ export const addMissionToDB = async (title: string, xpReward: number, time: stri
     if (!user) throw new Error("Kamu belum login!");
     if (!childId) throw new Error("ID Anak tidak valid!");
 
-    // A. Simpan misi sebagai tugas harian anak
     const docRef = await addDoc(missionsCollection, {
       title,
       xpReward,
       time,
       status: "pending",
       createdAt: new Date().toISOString(),
-      userId: user.uid, // ID Orang Tua (Pembuat)
-      childId: childId  // ✅ ID Anak (Penerima Tugas)
+      userId: user.uid, 
+      childId: childId  
     });
     
-    // B. LOGIKA BARU: Kalau ibu nge-centang "Simpan sebagai Template"
     if (isFavorite) {
       await addDoc(favoriteMissionsCollection, {
         title,
         xpReward,
         time,
-        userId: user.uid, // Diikat ke ID ortu biar gak kecampur sama user lain
+        userId: user.uid, 
         createdAt: new Date().toISOString()
       });
     }
@@ -45,7 +42,7 @@ export const addMissionToDB = async (title: string, xpReward: number, time: stri
 };
 
 /**
- * 🌟 FUNGSI BARU: Mengambil Daftar Misi Favorit/Template Custom
+ * 🌟 Mengambil Daftar Misi Favorit/Template Custom
  */
 export const getFavoriteMissionsFromDB = async () => {
   try {
@@ -70,14 +67,22 @@ export const getFavoriteMissionsFromDB = async () => {
 };
 
 /**
- * 2. Fungsi Umum: Mengambil Hanya Misi Milik Sendiri (Orang Tua)
+ * 2. ✅ DIUPDATE: Mengambil Misi Milik Sendiri (Bisa difilter per Anak)
  */
-export const getMissionsFromDB = async () => {
+export const getMissionsFromDB = async (childId?: string) => {
   try {
     const user = auth.currentUser;
     if (!user) return []; 
 
-    const q = query(missionsCollection, where("userId", "==", user.uid));
+    // Jika childId dikirim, tarik misi spesifik untuk anak itu saja
+    // Jika tidak, tarik semua misi untuk ortu tersebut (berguna untuk halaman Manage All Missions)
+    let q;
+    if (childId) {
+      q = query(missionsCollection, where("userId", "==", user.uid), where("childId", "==", childId));
+    } else {
+      q = query(missionsCollection, where("userId", "==", user.uid));
+    }
+
     const snapshot = await getDocs(q);
     
     const missions = snapshot.docs.map(doc => ({
@@ -118,7 +123,6 @@ export const completeMissionInDB = async (missionId: string) => {
  */
 export const submitMissionProofInDB = async (missionId: string, imageFile: File) => {
   try {
-    // ❌ Dihapus cek auth.currentUser karena anak tidak pakai auth
     const storageRef = ref(storage, `proofs/${missionId}-${Date.now()}.jpg`);
     await uploadBytes(storageRef, imageFile);
     
@@ -139,7 +143,7 @@ export const submitMissionProofInDB = async (missionId: string, imageFile: File)
 };
 
 /**
- * 5. Fungsi untuk Orang Tua: Memberikan Ulasan Misi
+ * 5. ✅ DIUPDATE: Memberikan Ulasan Misi dan Menyalaikan Mesin Level Anak
  */
 export const reviewMissionInDB = async (missionId: string, status: "approved" | "rejected", xpReward: number) => {
   try {
@@ -152,52 +156,57 @@ export const reviewMissionInDB = async (missionId: string, status: "approved" | 
     if (!missionSnap.exists()) throw new Error("Misi tidak ditemukan");
     
     const missionData = missionSnap.data();
-    // ✅ Menggunakan childId untuk memberikan XP dan Koin kepada anak yang tepat
-    const childUserId = missionData.childId || missionData.userId; // Fallback ke userId jika data lama
+    const childUserId = missionData.childId || missionData.userId; 
 
+    // Update status misinya dulu
     await updateDoc(missionRef, {
       status: status,
       reviewedAt: new Date().toISOString()
     });
 
+    // ⚡ LOGIKA MESIN XP, KOIN, DAN LEVEL AKTIF JIKA DISETUJUI
     if (status === "approved") {
       const childRef = doc(db, "children", childUserId); 
-      const childSnap = await getDoc(childRef); // ✅ Tarik data anak saat ini untuk cek kelayakan Badge
-
-      let currentMissionsCompleted = 0;
-      let currentBadges: string[] = [];
+      const childSnap = await getDoc(childRef); 
 
       if (childSnap.exists()) {
         const childData = childSnap.data();
-        currentMissionsCompleted = childData.missionsCompleted || 0;
-        currentBadges = childData.unlockedBadges || [];
-      }
+        
+        // Ekstrak data saat ini
+        let currentXp = childData.xp || 0;
+        let currentLevel = childData.level || 1;
+        let currentCoins = childData.coins || 0;
+        let currentMissionsCompleted = childData.missionsCompleted || 0;
+        let currentBadges: string[] = childData.unlockedBadges || [];
 
-      const newMissionsCompleted = currentMissionsCompleted + 1;
-      const newBadges = [...currentBadges];
+        // Kalkulasi tambahan hadiah
+        const coinReward = Math.ceil(xpReward / 10);
+        let newXp = currentXp + xpReward;
+        let newCoins = currentCoins + coinReward;
+        let newMissionsCompleted = currentMissionsCompleted + 1;
+        let newBadges = [...currentBadges];
+        let newLevel = currentLevel;
 
-      // 🏆 MESIN BADGE: Logika otomatis membuka trofi
-      if (newMissionsCompleted >= 1 && !newBadges.includes("badge_pemula")) {
-        newBadges.push("badge_pemula");
-      }
-      if (newMissionsCompleted >= 5 && !newBadges.includes("badge_rajin")) {
-        newBadges.push("badge_rajin");
-      }
-      if (newMissionsCompleted >= 10 && !newBadges.includes("badge_sapu_emas")) {
-        newBadges.push("badge_sapu_emas");
-      }
-      if (newMissionsCompleted >= 30 && !newBadges.includes("badge_pahlawan_super")) {
-        newBadges.push("badge_pahlawan_super");
-      }
+        // 🚀 MESIN NAIK LEVEL: Cek apakah newXp melampaui batas level berikutnya (Level * Level * 100)
+        while (newXp >= newLevel * newLevel * 100) {
+          newLevel++;
+        }
 
-      const coinReward = Math.ceil(xpReward / 10);
-      
-      await updateDoc(childRef, {
-        xp: increment(xpReward),
-        coins: increment(coinReward),
-        missionsCompleted: increment(1), // ✅ Catat tambahan 1 misi selesai
-        unlockedBadges: newBadges        // ✅ Update lemari trofi anak dengan array terbaru
-      });
+        // 🏆 MESIN BADGE: Logika otomatis membuka trofi
+        if (newMissionsCompleted >= 1 && !newBadges.includes("badge_pemula")) newBadges.push("badge_pemula");
+        if (newMissionsCompleted >= 5 && !newBadges.includes("badge_rajin")) newBadges.push("badge_rajin");
+        if (newMissionsCompleted >= 10 && !newBadges.includes("badge_sapu_emas")) newBadges.push("badge_sapu_emas");
+        if (newMissionsCompleted >= 30 && !newBadges.includes("badge_pahlawan_super")) newBadges.push("badge_pahlawan_super");
+
+        // Simpan hasil hitungan mesin kembali ke Firestore
+        await updateDoc(childRef, {
+          xp: newXp,
+          level: newLevel,
+          coins: newCoins,
+          missionsCompleted: newMissionsCompleted,
+          unlockedBadges: newBadges 
+        });
+      }
     }
 
     return true;

@@ -45,39 +45,50 @@ export default function LevelMap() {
   const gameId = params.gameId as string;
   const gameInfo = GAME_DB[gameId];
 
-  // ✅ UPDATE: Tarik parentPlan (Kunci VIP) dari ransel Zustand si anak
-  const { activeChildId, parentPlan } = useGameStore();
+  // ✅ UPDATE: Kita buang parentPlan dari Zustand, murni mengandalkan Database
+  const { activeChildId } = useGameStore();
   
   const [currentProgressLevel, setCurrentProgressLevel] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   
-  // State untuk mengontrol Pop-Up Premium
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  
+  // ✅ STATE BARU: Menyimpan status VIP yang ditarik real-time dari Firestore
+  const [isPremium, setIsPremium] = useState(false);
 
-  // Tarik data progress anak dari Firebase
+  // Tarik data progress anak dan kasta Ortu dari Firebase
   useEffect(() => {
-    const fetchProgress = async () => {
+    const fetchProgressAndPlan = async () => {
       if (!activeChildId) return;
       try {
-        const snap = await getDoc(doc(db, "children", activeChildId));
-        if (snap.exists()) {
-          const data = snap.data();
-          // Kalau udah lulus level 1, berarti progress = 1, dia bisa main level 2 (1+1)
-          const progress = data.gameProgress?.[gameId] || 0;
+        // 1. Tarik Laci Anak
+        const childSnap = await getDoc(doc(db, "children", activeChildId));
+        if (childSnap.exists()) {
+          const childData = childSnap.data();
+          const progress = childData.gameProgress?.[gameId] || 0;
           setCurrentProgressLevel(progress + 1); 
+
+          // 2. ✅ LOGIKA BARU: Intip Laci Ortu pakai parentId dari data anak
+          const parentId = childData.parentId;
+          if (parentId) {
+            const parentSnap = await getDoc(doc(db, "parents", parentId));
+            if (parentSnap.exists()) {
+              const parentData = parentSnap.data();
+              // Kalau langganannya bukan basic, gembok terbuka!
+              if (parentData.subscriptionPlan && parentData.subscriptionPlan !== "basic") {
+                setIsPremium(true);
+              }
+            }
+          }
         }
       } catch (error) {
-        console.error("Gagal menarik data progress:", error);
+        console.error("Gagal menarik data progress & kasta:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchProgress();
+    fetchProgressAndPlan();
   }, [activeChildId, gameId]);
-
-  // ✅ UPDATE: Logika Dinamis Penentu Premium (Tidak lagi di-hardcode)
-  // Selama bukan "basic", berarti anak ini punya akses Premium (Pro/Tahunan/Lifetime)
-  const isPremium = parentPlan !== "basic"; 
 
   if (!gameInfo) {
     return <div className="p-10 text-center font-bold">Game tidak ditemukan!</div>;

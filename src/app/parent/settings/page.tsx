@@ -10,23 +10,26 @@ import {
   updateChildPin, 
   updateChildSettings 
 } from "@/lib/childService";
+import { checkAndCreateParentProfile } from "@/lib/parentService"; 
 import { 
   ArrowLeft, Users, UserPlus, Eye, EyeOff, Clock, Moon, 
   ShieldCheck, CreditCard, LogOut, X, Loader2, ChevronRight, Settings,
-  Tv // <-- Update icon tambahan untuk layar profil
+  Tv, Crown
 } from "lucide-react";
 import Link from "next/link";
+
+type PlanType = "basic" | "pro" | "annual" | "lifetime";
 
 export default function SettingsPage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [childrenData, setChildrenData] = useState<any[]>([]);
+  const [parentPlan, setParentPlan] = useState<PlanType>("basic");
   const [isLoading, setIsLoading] = useState(true);
   
   const [visiblePins, setVisiblePins] = useState<{ [key: string]: boolean }>({});
   const [isAddChildOpen, setIsAddChildOpen] = useState(false);
   
-  // --- UPDATE PENTING UNTUK LOGIKA UMUR ANAK ---
   const [newChildName, setNewChildName] = useState("");
   const [newChildPin, setNewChildPin] = useState("");
   const [newChildAge, setNewChildAge] = useState<string>(""); 
@@ -41,7 +44,7 @@ export default function SettingsPage() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setUserEmail(user.email);
-        fetchChildren();
+        fetchDashboardData();
       } else {
         router.push("/login");
       }
@@ -49,13 +52,17 @@ export default function SettingsPage() {
     return () => unsubscribe();
   }, [router]);
 
-  const fetchChildren = async () => {
+  const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
+      const parentProfile = await checkAndCreateParentProfile();
+      if (parentProfile) {
+        setParentPlan(parentProfile.subscriptionPlan as PlanType);
+      }
       const profiles = await getChildrenProfiles();
       setChildrenData(profiles);
     } catch (error) {
-      console.error("Gagal menarik data anak:", error);
+      console.error("Gagal menarik data:", error);
     } finally {
       setIsLoading(false);
     }
@@ -90,12 +97,25 @@ export default function SettingsPage() {
       }
       alert("Pengaturan berhasil diperbarui!");
       setIsSettingsOpen(false);
-      fetchChildren();
+      fetchDashboardData();
     } catch (error) {
       alert("Gagal menyimpan pengaturan.");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOpenAddChild = () => {
+    if (parentPlan === "basic" && childrenData.length >= 1) {
+      const wantsToUpgrade = window.confirm(
+        "Batas Profil Gratis Habis! 🚨\n\nAkun Basic hanya bisa memiliki 1 profil anak. Upgrade ke KIDO Premium untuk menambahkan pahlawan tanpa batas!\n\nMau lihat paket Premium sekarang?"
+      );
+      if (wantsToUpgrade) {
+        router.push("/parent/billing");
+      }
+      return;
+    }
+    setIsAddChildOpen(true);
   };
 
   const handleAddChild = async (e: React.FormEvent) => {
@@ -107,14 +127,13 @@ export default function SettingsPage() {
     setIsSubmitting(true);
     try {
       // NOTE: Fungsi createChildProfile di lib/childService.ts harus di-update nanti biar nerima parameter umur!
-      // Untuk sementara, kita kirim nama dan PIN dulu agar tidak error.
       await createChildProfile(newChildName, newChildPin, newChildAge); 
       alert(`🎉 Profil ${newChildName} berhasil dibuat!`);
       setIsAddChildOpen(false);
       setNewChildName("");
       setNewChildPin("");
       setNewChildAge("");
-      fetchChildren();
+      fetchDashboardData();
     } catch (error) {
       alert("Gagal menambahkan anak.");
     } finally {
@@ -149,9 +168,16 @@ export default function SettingsPage() {
 
       <div className="p-6 space-y-8">
         <section>
-          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 flex items-center gap-2">
-            <Users className="w-4 h-4" /> Pasukan Pahlawan
-          </h2>
+          <div className="flex justify-between items-end mb-3 ml-2">
+            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Users className="w-4 h-4" /> Pasukan Pahlawan
+            </h2>
+            {parentPlan !== "basic" && (
+              <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md flex items-center gap-1">
+                <Crown className="w-3 h-3" /> VIP
+              </span>
+            )}
+          </div>
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
             {childrenData.length === 0 ? (
               <div className="p-6 text-center text-slate-500 text-sm font-medium">Belum ada profil anak.</div>
@@ -186,7 +212,7 @@ export default function SettingsPage() {
                 ))}
               </div>
             )}
-            <button onClick={() => setIsAddChildOpen(true)} className="w-full p-4 flex items-center justify-center space-x-2 text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-50">
+            <button onClick={handleOpenAddChild} className="w-full p-4 flex items-center justify-center space-x-2 text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-50 transition-colors">
               <UserPlus className="w-5 h-5" /> <span>Tambah Profil Anak</span>
             </button>
           </div>
@@ -208,7 +234,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* --- UPDATE: TOMBOL GANTI PROFIL (NETFLIX STYLE) --- */}
         <section className="space-y-3 pt-4 border-t border-slate-200">
           <button 
             onClick={() => router.push("/profiles")} 
@@ -227,7 +252,6 @@ export default function SettingsPage() {
 
       </div>
 
-      {/* ✅ MODAL SETTINGS (READABLE) */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
@@ -255,7 +279,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* MODAL TAMBAH ANAK (DENGAN LOGIKA UMUR) */}
       {isAddChildOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
             <div className="bg-white w-full sm:w-[400px] rounded-t-[2rem] sm:rounded-3xl p-6 shadow-2xl">
@@ -273,7 +296,6 @@ export default function SettingsPage() {
                   required 
                 />
                 
-                {/* --- INPUT UMUR --- */}
                 <select
                   value={newChildAge}
                   onChange={(e) => setNewChildAge(e.target.value)}

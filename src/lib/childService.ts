@@ -5,7 +5,7 @@ import { db, auth } from "./firebase";
 
 /**
  * 1. Membuat Profil Anak Baru 
- * ✅ Update: Menambahkan parameter UMUR (age) untuk logika pemisahan game
+ * ✅ Update: Menambahkan UMUR & Data Game Engine (Badges, Progress, dll)
  */
 export const createChildProfile = async (name: string, pin: string, age: string) => {
   try {
@@ -22,6 +22,12 @@ export const createChildProfile = async (name: string, pin: string, age: string)
       sleepTime: "21:00",      // Default Jam Tidur
       screenTimeLimit: 60,     // Default Limit Main (menit)
       parentId: user.uid, 
+      
+      // ✅ SETUP DATA GAME ENGINE AWAL BIAR GAK EROR DI ZUSTAND
+      missionsCompleted: 0, 
+      unlockedBadges: [], 
+      gameProgress: {}, 
+
       createdAt: new Date().toISOString()
     };
 
