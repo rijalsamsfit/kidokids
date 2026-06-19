@@ -21,10 +21,16 @@ import {
 import Link from "next/link";
 import { useParentStore } from "@/store/useParentStore";
 
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
+
 export default function SettingsPage() {
   const router = useRouter();
   
   const { parentPlan, fetchParentData, isPlanLoading } = useParentStore();
+  
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT & CONFIRM
+  const { showAlert, showConfirm } = useModalStore();
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [parentData, setParentData] = useState<any>(null); // State Data Ortu
@@ -77,13 +83,10 @@ export default function SettingsPage() {
   const fetchDashboardData = async (uid: string) => {
     setIsLoading(true);
     try {
-      // Tarik Data Ortu Manual
       const pSnap = await getDoc(doc(db, "parents", uid));
       if (pSnap.exists()) {
         setParentData(pSnap.data());
       }
-
-      // Tarik Data Anak
       const profiles = await getChildrenProfiles();
       setChildrenData(profiles);
     } catch (error) {
@@ -108,7 +111,7 @@ export default function SettingsPage() {
 
   const handleSaveParentProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editParentPin.length !== 4) return alert("PIN wajib 4 angka!");
+    if (editParentPin.length !== 4) return showAlert("PIN Tidak Valid", "PIN wajib terdiri dari 4 angka!");
     
     setIsSubmitting(true);
     try {
@@ -116,11 +119,11 @@ export default function SettingsPage() {
         name: editParentName,
         pin: editParentPin
       });
-      alert("Profil Orang Tua diperbarui!");
+      showAlert("Berhasil", "Profil Orang Tua berhasil diperbarui!");
       setIsEditParentOpen(false);
       fetchDashboardData(auth.currentUser!.uid);
     } catch (error) {
-      alert("Gagal update profil.");
+      showAlert("Gagal", "Terjadi kesalahan saat mengupdate profil.");
     } finally {
       setIsSubmitting(false);
     }
@@ -147,14 +150,15 @@ export default function SettingsPage() {
   };
 
   const handlePhotoClick = () => {
-    // 🛡️ LOGIKA PAYWALL: Kunci fitur foto untuk akun Basic
+    // 🛡️ LOGIKA PAYWALL CUSTOM MODAL
     if (parentPlan === "basic") {
-      const wantsToUpgrade = window.confirm(
-        "Fitur Upload Foto Wajah Anak hanya tersedia untuk akun KIDO Premium! 👑\n\nMau lihat pilihan paket Premium sekarang?"
+      showConfirm(
+        "Fitur Terkunci 👑",
+        "Upload foto wajah anak hanya tersedia untuk akun KIDO Premium. Mau lihat paket Premium sekarang?",
+        () => router.push("/parent/billing"),
+        "Lihat Premium",
+        "Batal"
       );
-      if (wantsToUpgrade) {
-        router.push("/parent/billing");
-      }
     } else {
       fileInputRef.current?.click();
     }
@@ -168,32 +172,25 @@ export default function SettingsPage() {
     try {
       let finalPhotoUrl = activeChild.photoUrl || null;
 
-      // PROSES UPLOAD JIKA ADA FOTO BARU
       if (selectedImage) {
-        // 1. Kompresi Gambar agar ringan
         const compressedFile = await compressImage(selectedImage);
-        
-        // 2. Upload ke Firebase Storage
         const storageRef = ref(storage, `child_profiles/${activeChild.id}_${Date.now()}.jpg`);
         await uploadBytes(storageRef, compressedFile);
-        
-        // 3. Dapatkan Link Gambar
         finalPhotoUrl = await getDownloadURL(storageRef);
       }
 
-      // UPDATE FIRESTORE
       await updateDoc(doc(db, "children", activeChild.id), {
         name: editChildName,
         age: Number(editChildAge),
         photoUrl: finalPhotoUrl
       });
 
-      alert("Profil Anak berhasil diperbarui!");
+      showAlert("Berhasil", "Profil Anak berhasil diperbarui!");
       setIsEditChildOpen(false);
       fetchDashboardData(auth.currentUser!.uid);
     } catch (error) {
       console.error("Gagal update anak:", error);
-      alert("Gagal memperbarui profil anak.");
+      showAlert("Gagal", "Gagal memperbarui profil anak.");
     } finally {
       setIsSubmitting(false);
     }
@@ -222,11 +219,11 @@ export default function SettingsPage() {
       } else if (settingType === "sleepTime") {
         await updateChildSettings(activeChild.id, { sleepTime: inputValue });
       }
-      alert("Pengaturan berhasil diperbarui!");
+      showAlert("Tersimpan", "Pengaturan berhasil diperbarui!");
       setIsSettingsOpen(false);
       fetchDashboardData(auth.currentUser!.uid);
     } catch (error) {
-      alert("Gagal menyimpan pengaturan.");
+      showAlert("Gagal", "Terjadi kesalahan saat menyimpan pengaturan.");
     } finally {
       setIsSubmitting(false);
     }
@@ -234,10 +231,13 @@ export default function SettingsPage() {
 
   const handleOpenAddChild = () => {
     if (parentPlan === "basic" && childrenData.length >= 1) {
-      const wantsToUpgrade = window.confirm(
-        "Batas Profil Gratis Habis! 🚨\n\nAkun Basic hanya bisa memiliki 1 profil anak. Upgrade ke KIDO Premium untuk menambahkan pahlawan tanpa batas!\n\nMau lihat paket Premium sekarang?"
+      showConfirm(
+        "Batas Kuota Habis! 🚨",
+        "Akun Basic maksimal hanya bisa memiliki 1 profil anak. Upgrade ke KIDO Premium untuk tambah pahlawan tanpa batas!",
+        () => router.push("/parent/billing"),
+        "Upgrade Premium",
+        "Batal"
       );
-      if (wantsToUpgrade) router.push("/parent/billing");
       return;
     }
     setIsAddChildOpen(true);
@@ -246,28 +246,34 @@ export default function SettingsPage() {
   const handleAddChild = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChildName.trim() || newChildPin.length !== 4 || !newChildAge) {
-      alert("Nama, Umur, dan PIN 4 digit harus diisi!");
-      return;
+      return showAlert("Data Tidak Lengkap", "Nama, Umur, dan PIN 4 digit harus diisi!");
     }
     setIsSubmitting(true);
     try {
       await createChildProfile(newChildName, newChildPin, newChildAge); 
-      alert(`🎉 Profil ${newChildName} berhasil dibuat!`);
+      showAlert("Pahlawan Baru!", `Profil ${newChildName} berhasil ditambahkan ke pangkalan!`);
       setIsAddChildOpen(false);
       setNewChildName(""); setNewChildPin(""); setNewChildAge("");
       fetchDashboardData(auth.currentUser!.uid);
     } catch (error) {
-      alert("Gagal menambahkan anak.");
+      showAlert("Gagal", "Gagal menambahkan profil anak.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleLogout = async () => {
-    if (confirm("Yakin ingin keluar dari akun Orang Tua?")) {
-      await signOut(auth);
-      router.push("/login");
-    }
+  const handleLogout = () => {
+    // 🛡️ CUSTOM CONFIRM UNTUK LOGOUT
+    showConfirm(
+      "Keluar Pangkalan?",
+      "Yakin ingin keluar dari akun Orang Tua KIDO?",
+      async () => {
+        await signOut(auth);
+        router.push("/login");
+      },
+      "Ya, Keluar",
+      "Batal"
+    );
   };
 
   const isPageLoading = isLoading || isPlanLoading;

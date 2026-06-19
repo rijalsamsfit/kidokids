@@ -322,7 +322,7 @@ export default function ParentAnalytics() {
                   </div>
 
                   {/* GRAFIK AKTIVITAS 7 HARI TERAKHIR */}
-                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm animate-in fade-in duration-300 mt-6">
                     <div className="flex items-center gap-2 mb-4">
                       <BarChart3 className="w-5 h-5 text-purple-500" />
                       <h3 className="font-black text-slate-800">Aktivitas 7 Hari Terakhir</h3>
@@ -339,96 +339,103 @@ export default function ParentAnalytics() {
                     </div>
                   </div>
 
-                  {/* 🛑 EMPTY STATE 2: BELUM ADA MISI SELESAI SAMA SEKALI UNTUK DIANALISIS */}
-                  {stats.completedMissions === 0 && !analysisResult ? (
-                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
-                      <div className="w-20 h-20 bg-slate-50 border-2 border-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 animate-bounce shadow-sm">
-                        <Bot className="w-10 h-10 text-slate-400" />
+                  {/* 🤖 KOTAK KONSULTASI AI (Tergabung: Empty State + Paywall) */}
+                  <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden animate-in slide-in-from-bottom-4 duration-500 mt-6">
+                    
+                    {/* 🔒 PAYWALL OVERLAY KASTA BASIC (Paling Atas) */}
+                    {access.type === "premium_required" && (
+                      <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+                        <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-lg border-2 border-amber-200">
+                          <Lock className="w-8 h-8" />
+                        </div>
+                        <h3 className="font-black text-slate-800 text-xl mb-2">Laporan VIP Terkunci</h3>
+                        <p className="text-slate-600 font-bold text-sm mb-6">Upgrade ke KIDO Premium untuk membuka analisis karakter berbasis AI mingguan.</p>
+                        
+                        <button
+                          onClick={() => router.push("/parent/billing")}
+                          className="w-full max-w-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-300 transition-all active:scale-95"
+                        >
+                          <Crown className="w-5 h-5" /> Buka Kunci VIP
+                        </button>
                       </div>
-                      <h3 className="font-black text-slate-800 text-xl mb-2">Bip-bop! Data Belum Cukup</h3>
-                      <p className="text-slate-500 text-sm mb-8 leading-relaxed px-2">
-                        Robot AI belum punya bahan untuk berpikir. AI membutuhkan setidaknya beberapa misi yang diselesaikan oleh <strong>{selectedChild.name}</strong> untuk mulai menyusun laporan analisis karakter.
-                      </p>
-                      <button
-                        onClick={() => router.push("/parent")}
-                        className="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 font-black py-4 rounded-2xl flex items-center justify-center border-2 border-slate-200 transition-all active:scale-95"
-                      >
-                        Buat Misi Pertama
-                      </button>
-                    </div>
-                  ) : (
-                    /* AREA KONSULTASI AI (Tampil Jika Sudah Ada Data) */
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                    )}
+
+                    {/* KONTEN KARTU (Berubah sesuai jumlah misi, dan akan buram jika kena Paywall) */}
+                    <div className={access.type === "premium_required" ? "opacity-30 pointer-events-none blur-sm transition-all" : ""}>
                       
-                      {/* EFEK BLUR KASTA BASIC */}
-                      {access.type === "premium_required" && (
-                        <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                          <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-lg border-2 border-amber-200">
-                            <Lock className="w-8 h-8" />
+                      {stats.completedMissions === 0 && !analysisResult ? (
+                        /* KONTEN A: EMPTY STATE (0 MISI) */
+                        <div className="py-2">
+                          <div className="w-20 h-20 bg-slate-50 border-2 border-slate-100 rounded-full flex items-center justify-center mx-auto mb-5 animate-bounce shadow-sm">
+                            <Bot className="w-10 h-10 text-slate-400" />
                           </div>
-                          <h3 className="font-black text-slate-800 text-xl mb-2">Laporan VIP Terkunci</h3>
-                          <p className="text-slate-600 font-bold text-sm mb-6">Upgrade ke KIDO Premium untuk membuka analisis karakter berbasis AI mingguan.</p>
-                          
+                          <h3 className="font-black text-slate-800 text-xl mb-2">Bip-bop! Data Belum Cukup</h3>
+                          <p className="text-slate-500 text-sm mb-8 leading-relaxed px-2">
+                            Robot AI belum punya bahan untuk berpikir. AI membutuhkan setidaknya beberapa misi yang diselesaikan oleh <strong>{selectedChild.name}</strong> untuk mulai menyusun laporan analisis karakter.
+                          </p>
                           <button
-                            onClick={() => router.push("/parent/billing")}
-                            className="w-full max-w-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-amber-950 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-amber-300 transition-all active:scale-95"
+                            onClick={() => router.push("/parent")}
+                            className="w-full bg-slate-50 hover:bg-slate-100 text-slate-600 font-black py-4 rounded-2xl flex items-center justify-center border-2 border-slate-200 transition-all active:scale-95"
                           >
-                            <Crown className="w-5 h-5" /> Buka Kunci VIP
+                            Buat Misi Pertama
+                          </button>
+                        </div>
+                      ) : (
+                        /* KONTEN B: READY STATE (ADA MISI / ADA RIWAYAT) */
+                        <div className="py-2">
+                          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Bot className="w-8 h-8 text-purple-600" />
+                          </div>
+                          <h3 className="font-black text-slate-800 text-xl mb-2">Konsultasi Aktivitas {selectedChild.name}</h3>
+                          <p className="text-slate-500 text-sm mb-6 px-4">
+                            AI akan membaca rekam jejak misi {selectedChild.name} untuk memberikan saran parenting yang tepat sasaran.
+                          </p>
+
+                          {/* BANNER EDUKASI COOLDOWN */}
+                          {access.type === "cooldown" && (
+                            <div className="mb-6 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start space-x-3 text-left">
+                              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-amber-900">Kuota Evaluasi Mingguan</span>
+                                <span className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                                  AI butuh waktu merekam perkembangan konsistensi anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{access.daysLeft} hari lagi</strong>.
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* TOMBOL ANALISIS */}
+                          <button
+                            onClick={handleAnalyze}
+                            disabled={isAnalyzing || access.isLocked}
+                            className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all ${
+                              access.isLocked 
+                                ? "bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed" 
+                                : isAnalyzing
+                                  ? "bg-purple-400 text-white cursor-not-allowed"
+                                  : "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200 active:scale-95"
+                            }`}
+                          >
+                            {isAnalyzing ? (
+                              <>
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                                Membaca Jurnal...
+                              </>
+                            ) : access.type === "cooldown" ? (
+                              <>
+                                <Lock className="w-5 h-5" />
+                                Terkunci ({access.daysLeft} Hari)
+                              </>
+                            ) : (
+                              <>
+                                Mulai Analisis <ChevronRight className="w-6 h-6" />
+                              </>
+                            )}
                           </button>
                         </div>
                       )}
-
-                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Bot className="w-8 h-8 text-purple-600" />
-                      </div>
-                      <h3 className="font-black text-slate-800 text-xl mb-2">Konsultasi Aktivitas {selectedChild.name}</h3>
-                      <p className="text-slate-500 text-sm mb-6 px-4">
-                        AI akan membaca rekam jejak misi {selectedChild.name} untuk memberikan saran parenting yang tepat sasaran.
-                      </p>
-
-                      {/* BANNER EDUKASI COOLDOWN */}
-                      {access.type === "cooldown" && (
-                        <div className="mb-6 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start space-x-3 text-left">
-                          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-amber-900">Kuota Evaluasi Mingguan</span>
-                            <span className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                              AI butuh waktu merekam perkembangan konsistensi anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{access.daysLeft} hari lagi</strong>.
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* TOMBOL ANALISIS */}
-                      <button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing || access.isLocked}
-                        className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all ${
-                          access.isLocked 
-                            ? "bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed" 
-                            : isAnalyzing
-                              ? "bg-purple-400 text-white cursor-not-allowed"
-                              : "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200 active:scale-95"
-                        }`}
-                      >
-                        {isAnalyzing ? (
-                          <>
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            Membaca Jurnal...
-                          </>
-                        ) : access.type === "cooldown" ? (
-                          <>
-                            <Lock className="w-5 h-5" />
-                            Terkunci ({access.daysLeft} Hari)
-                          </>
-                        ) : (
-                          <>
-                            Mulai Analisis <ChevronRight className="w-6 h-6" />
-                          </>
-                        )}
-                      </button>
                     </div>
-                  )}
+                  </div>
 
                   {/* PESAN EROR */}
                   {errorMsg && (
