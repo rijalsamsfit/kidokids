@@ -8,9 +8,15 @@ import { auth, db } from "@/lib/firebase"; // ✅ UPDATE: Tambah db
 import { doc, getDoc } from "firebase/firestore"; // ✅ UPDATE: Import getDoc
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
+// ✅ 1. IMPORT PABRIK POP-UP KIDO
+import { useModalStore } from "@/store/useModalStore";
+
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT
+  const { showAlert } = useModalStore();
 
   // Fungsi Login KHUSUS Orang Tua (Manager) menggunakan Akun Google
   const handleParentLogin = async () => {
@@ -37,7 +43,11 @@ export default function LoginPage() {
 
     } catch (error: any) {
       console.error("Gagal login:", error);
-      alert(`Oops, gagal login: ${error.message}. Pastikan popup tidak diblokir browser ya!`);
+      // ✅ 3. ROMBAK ALERT GAGAL LOGIN ORTU
+      showAlert(
+        "Gagal Masuk", 
+        `Oops, gagal login: ${error.message}. Pastikan popup tidak diblokir browser ya!`
+      );
       setIsLoading(false);
     }
   };
@@ -48,7 +58,11 @@ export default function LoginPage() {
     if (auth.currentUser) {
       router.push("/profiles");
     } else {
-      alert("Pahlawan kecil, minta tolong Ayah atau Ibu untuk Masuk pakai Google dulu ya buat buka pintunya!");
+      // ✅ 4. ROMBAK ALERT PINTU TERKUNCI ANAK (Sesuai Screenshot)
+      showAlert(
+        "Pintu Terkunci! 🚪", 
+        "Pahlawan kecil, minta tolong Ayah atau Ibu untuk Masuk pakai Google dulu ya buat buka pintunya!"
+      );
     }
   };
 
