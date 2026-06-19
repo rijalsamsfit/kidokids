@@ -3,6 +3,9 @@ import { Nunito } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
+// ✅ 1. IMPORT GLOBAL MODAL DI SINI
+import GlobalModal from "@/components/GlobalModal";
+
 // ✅ PERBAIKAN: Kurung siku ganda [["latin"]] diubah menjadi satu kurung siku ["latin"]
 const nunito = Nunito({ subsets: ["latin"] });
 
@@ -32,6 +35,9 @@ export default function RootLayout({
         <div className="max-w-md mx-auto bg-white min-h-screen shadow-xl pb-20 relative">
           {children}
         </div>
+
+        {/* ✅ 2. SUNTIK GLOBAL MODAL DI SINI BIAR MERAJAI SELURUH HALAMAN */}
+        <GlobalModal />
 
         {/* Masukkan Script Midtrans Sandbox di bawah ini untuk testing */}
         <Script 
