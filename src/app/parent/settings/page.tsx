@@ -584,17 +584,24 @@ export default function SettingsPage() {
                   <input type="text" value={newChildName} onChange={(e) => setNewChildName(e.target.value)} className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-bold outline-none focus:border-indigo-500" required />
                 </div>
                 
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Umur Anak</label>
-                  <select value={newChildAge} onChange={(e) => setNewChildAge(e.target.value)} className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-900 font-bold outline-none focus:border-indigo-500 appearance-none" required >
+                  <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                    Umur Anak
+                  </label>
+                  <select
+                    value={newChildAge} // Sesuaikan dengan state lu
+                    onChange={(e) => setNewChildAge(e.target.value)} // Sesuaikan dengan fungsi lu
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition-all appearance-none cursor-pointer"
+                  >
                     <option value="" disabled>Pilih Umur...</option>
-                    <option value="4">4 Tahun (Rumah Bahagia)</option>
-                    <option value="5">5 Tahun (Rumah Bahagia)</option>
-                    <option value="6">6 Tahun (Rumah Bahagia)</option>
-                    <option value="7">7 Tahun (Rumah Bahagia)</option>
-                    <option value="8">8 Tahun (Akademi Hebat)</option>
-                    <option value="9">9 Tahun (Akademi Hebat)</option>
-                    <option value="10">10 Tahun (Akademi Hebat)</option>
+                    
+                    {/* Looping otomatis dari umur 4 sampai 12 tahun */}
+                    {Array.from({ length: 9 }, (_, i) => i + 4).map((age) => (
+                      <option key={age} value={age}>
+                        {age} Tahun
+                      </option>
+                    ))}
+                    
                   </select>
                 </div>
 
