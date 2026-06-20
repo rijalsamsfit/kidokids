@@ -16,24 +16,27 @@ import {
 import { 
   ArrowLeft, Users, UserPlus, Eye, EyeOff, Clock, Moon, 
   ShieldCheck, CreditCard, LogOut, X, Loader2, ChevronRight, Settings,
-  Tv, Crown, Edit3, Camera, Image as ImageIcon
+  Tv, Crown, Edit3, Camera, Image as ImageIcon, Smartphone, DownloadCloud, CheckCircle2 // ✅ TAMBAH IKON BARU
 } from "lucide-react";
 import Link from "next/link";
 import { useParentStore } from "@/store/useParentStore";
 
-// ✅ 1. IMPORT PABRIK POP-UP KIDO
+// IMPORT PABRIK POP-UP KIDO
 import { useModalStore } from "@/store/useModalStore";
+// ✅ IMPORT MESIN PWA KITA
+import { usePWAStore } from "@/store/usePWAStore";
 
 export default function SettingsPage() {
   const router = useRouter();
   
   const { parentPlan, fetchParentData, isPlanLoading } = useParentStore();
-  
-  // ✅ 2. AMBIL FUNGSI CUSTOM ALERT & CONFIRM
   const { showAlert, showConfirm } = useModalStore();
+  
+  // ✅ TARIK DATA SINYAL PWA DARI STORE
+  const { isInstallable, deferredPrompt, clearPrompt } = usePWAStore();
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [parentData, setParentData] = useState<any>(null); // State Data Ortu
+  const [parentData, setParentData] = useState<any>(null); 
   const [childrenData, setChildrenData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,8 +46,8 @@ export default function SettingsPage() {
   // State Modals
   const [isAddChildOpen, setIsAddChildOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isEditParentOpen, setIsEditParentOpen] = useState(false); // Modal Edit Ortu
-  const [isEditChildOpen, setIsEditChildOpen] = useState(false);   // Modal Edit Anak
+  const [isEditParentOpen, setIsEditParentOpen] = useState(false); 
+  const [isEditChildOpen, setIsEditChildOpen] = useState(false);  
 
   // Form State - Tambah Anak
   const [newChildName, setNewChildName] = useState("");
@@ -100,9 +103,18 @@ export default function SettingsPage() {
     setVisiblePins(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // ==========================================
-  // LOGIKA EDIT PROFIL ORANG TUA
-  // ==========================================
+  // ✅ LOGIKA TOMBOL DOWNLOAD PWA
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    // Munculkan pop-up install bawaan Chrome yang udah kita bajak
+    deferredPrompt.prompt();
+    // Tunggu pilihan Ortu (di-install atau di-cancel)
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      clearPrompt(); // Kalau sukses, bersihkan sinyal
+    }
+  };
+
   const openEditParent = () => {
     setEditParentName(parentData?.name || "");
     setEditParentPin(parentData?.pin || "");
@@ -129,9 +141,6 @@ export default function SettingsPage() {
     }
   };
 
-  // ==========================================
-  // LOGIKA EDIT PROFIL ANAK & UPLOAD FOTO
-  // ==========================================
   const openEditChild = (child: any) => {
     setActiveChild(child);
     setEditChildName(child.name);
@@ -150,7 +159,6 @@ export default function SettingsPage() {
   };
 
   const handlePhotoClick = () => {
-    // 🛡️ LOGIKA PAYWALL CUSTOM MODAL
     if (parentPlan === "basic") {
       showConfirm(
         "Fitur Terkunci 👑",
@@ -196,9 +204,6 @@ export default function SettingsPage() {
     }
   };
 
-  // ==========================================
-  // LOGIKA PENGATURAN LAIN (WAKTU & PIN)
-  // ==========================================
   const openSettings = (child: any, type: "screenTime" | "sleepTime" | "pin") => {
     setActiveChild(child);
     setSettingType(type);
@@ -263,7 +268,6 @@ export default function SettingsPage() {
   };
 
   const handleLogout = () => {
-    // 🛡️ CUSTOM CONFIRM UNTUK LOGOUT
     showConfirm(
       "Keluar Pangkalan?",
       "Yakin ingin keluar dari akun Orang Tua KIDO?",
@@ -399,6 +403,45 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* SEKSI APLIKASI KIDO (DOWNLOAD PWA) */}
+        <section>
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 flex items-center gap-2">
+            <Smartphone className="w-4 h-4" /> Aplikasi KIDO
+          </h2>
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-4">
+            {isInstallable ? (
+              <button 
+                onClick={handleInstallClick}
+                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg active:scale-95 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform">
+                    <DownloadCloud className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-black text-lg leading-tight mb-0.5">Download KIDO</p>
+                    <p className="text-[11px] text-indigo-100 font-bold">Main tanpa loading & hemat kuota!</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-6 h-6 text-indigo-200 group-hover:translate-x-1 transition-transform" />
+              </button>
+            ) : (
+              <div className="w-full flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100 cursor-default">
+                <div className="flex items-center gap-4">
+                  <div className="bg-emerald-100 p-3 rounded-xl">
+                    <Smartphone className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-black text-emerald-800 text-lg leading-tight mb-0.5">Aplikasi Terpasang</p>
+                    <p className="text-[11px] text-emerald-600 font-bold">KIDO siap dimainkan di HP ini.</p>
+                  </div>
+                </div>
+                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* SEKSI AKUN & TAGIHAN */}
         <section>
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2 flex items-center gap-2">
@@ -422,7 +465,7 @@ export default function SettingsPage() {
         </section>
 
         {/* TOMBOL KELUAR */}
-        <section className="space-y-3 pt-6">
+        <section className="space-y-3 pt-4">
           <button 
             onClick={() => router.push("/profiles")} 
             className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl flex items-center justify-center space-x-2 shadow-xl shadow-indigo-600/20 transition-all active:scale-95"
@@ -446,7 +489,7 @@ export default function SettingsPage() {
 
       {/* 1. MODAL EDIT PROFIL ORTU */}
       {isEditParentOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white p-8 rounded-[2rem] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-xl text-slate-900">Edit Profil Ortu</h3>
@@ -471,7 +514,7 @@ export default function SettingsPage() {
 
       {/* 2. MODAL EDIT PROFIL ANAK (NAMA, UMUR, FOTO) */}
       {isEditChildOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
           <div className="bg-white p-8 rounded-[2rem] w-full max-w-sm shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-xl text-slate-900">Edit Profil Anak</h3>
@@ -538,7 +581,7 @@ export default function SettingsPage() {
 
       {/* 3. MODAL PENGATURAN LAIN (WAKTU MAIN, JAM TIDUR, PIN ANAK) */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white p-8 rounded-[2rem] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-lg capitalize text-slate-900">
@@ -572,7 +615,7 @@ export default function SettingsPage() {
 
       {/* 4. MODAL TAMBAH ANAK */}
       {isAddChildOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-black text-slate-800">Rekrut Pahlawan Baru</h3>
@@ -589,8 +632,8 @@ export default function SettingsPage() {
                     Umur Anak
                   </label>
                   <select
-                    value={newChildAge} // Sesuaikan dengan state lu
-                    onChange={(e) => setNewChildAge(e.target.value)} // Sesuaikan dengan fungsi lu
+                    value={newChildAge} 
+                    onChange={(e) => setNewChildAge(e.target.value)} 
                     className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition-all appearance-none cursor-pointer"
                   >
                     <option value="" disabled>Pilih Umur...</option>

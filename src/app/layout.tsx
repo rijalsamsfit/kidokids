@@ -5,8 +5,10 @@ import "./globals.css";
 
 // ✅ 1. IMPORT GLOBAL MODAL DI SINI
 import GlobalModal from "@/components/GlobalModal";
+// ✅ 2. IMPORT ANTENA PWA KITA
+import PWAListener from "@/components/PWAListener";
 
-// ✅ PERBAIKAN: Kurung siku ganda [["latin"]] diubah menjadi satu kurung siku ["latin"]
+// PERBAIKAN: Kurung siku tunggal
 const nunito = Nunito({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -31,13 +33,17 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className={`${nunito.className} bg-slate-50 text-slate-900 antialiased min-h-screen`}>
+        
         {/* Pembungkus utama biar ukuran HP/Tab */}
         <div className="max-w-md mx-auto bg-white min-h-screen shadow-xl pb-20 relative">
           {children}
         </div>
 
-        {/* ✅ 2. SUNTIK GLOBAL MODAL DI SINI BIAR MERAJAI SELURUH HALAMAN */}
+        {/* ✅ SUNTIK GLOBAL MODAL DI SINI BIAR MERAJAI SELURUH HALAMAN */}
         <GlobalModal />
+        
+        {/* ✅ PASANG ANTENA PWA DI SINI */}
+        <PWAListener />
 
         {/* Masukkan Script Midtrans Sandbox di bawah ini untuk testing */}
         <Script 
