@@ -1,7 +1,10 @@
 // src/data/emotionLevels.ts
 
-export const EMOTION_LEVELS: Record<string, any> = {
-  "1": {
+export const EMOTION_DB: Record<string, any> = {
+  // ==========================================
+  // TIER 1: Usia 4 - 6 Tahun (Fokus Emosi Dasar)
+  // ==========================================
+  "tier1": {
     title: "Kenali Wajah",
     passingScore: 2,
     questions: [
@@ -37,7 +40,11 @@ export const EMOTION_LEVELS: Record<string, any> = {
       }
     ]
   },
-  "2": {
+
+  // ==========================================
+  // TIER 2: Usia 7 - 9 Tahun (Fokus Sebab & Akibat / Sensasi Fisik)
+  // ==========================================
+  "tier2": {
     title: "Sebab & Akibat",
     passingScore: 2,
     questions: [
@@ -63,32 +70,6 @@ export const EMOTION_LEVELS: Record<string, any> = {
       },
       {
         id: 3,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fearful%20face/3D/fearful_face_3d.png",
-        situation: "Kucingmu dikejar oleh anjing besar di jalan.",
-        options: [
-          { id: "A", text: "Takut", icon: "😨", isCorrect: true },
-          { id: "B", text: "Berani", icon: "😎", isCorrect: false },
-          { id: "C", text: "Lelah", icon: "😫", isCorrect: false },
-        ]
-      }
-    ]
-  },
-  "3": {
-    title: "Sakit atau Nyaman?",
-    passingScore: 2,
-    questions: [
-      {
-        id: 1,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Face%20with%20thermometer/3D/face_with_thermometer_3d.png",
-        situation: "Badan adik terasa panas dan dia terus menangis.",
-        options: [
-          { id: "A", text: "Sakit", icon: "🤒", isCorrect: true },
-          { id: "B", text: "Haus", icon: "🥛", isCorrect: false },
-          { id: "C", text: "Kaget", icon: "😲", isCorrect: false },
-        ]
-      },
-      {
-        id: 2,
         image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Cold%20face/3D/cold_face_3d.png",
         situation: "Kakak pulang sekolah saat hujan deras tanpa payung.",
         options: [
@@ -96,57 +77,15 @@ export const EMOTION_LEVELS: Record<string, any> = {
           { id: "B", text: "Kedinginan", icon: "🥶", isCorrect: true },
           { id: "C", text: "Gembira", icon: "😆", isCorrect: false },
         ]
-      },
-      {
-        id: 3,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Hot%20face/3D/hot_face_3d.png",
-        situation: "Kamu bermain lari-larian di lapangan saat siang hari yang terik.",
-        options: [
-          { id: "A", text: "Kedinginan", icon: "🥶", isCorrect: false },
-          { id: "B", text: "Ngantuk", icon: "🥱", isCorrect: false },
-          { id: "C", text: "Kepanasan", icon: "🥵", isCorrect: true },
-        ]
       }
     ]
   },
-  "4": {
-    title: "Perasaan Campur Aduk",
-    passingScore: 2,
-    questions: [
-      {
-        id: 1,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Face%20screaming%20in%20fear/3D/face_screaming_in_fear_3d.png",
-        situation: "Tiba-tiba lampu rumah mati semua menjadi sangat gelap!",
-        options: [
-          { id: "A", text: "Tertawa", icon: "😂", isCorrect: false },
-          { id: "B", text: "Takut/Kaget", icon: "😱", isCorrect: true },
-          { id: "C", text: "Marah", icon: "😡", isCorrect: false },
-        ]
-      },
-      {
-        id: 2,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Crying%20face/3D/crying_face_3d.png",
-        situation: "Kamu tidak bisa menemukan boneka kesayanganmu di kamar.",
-        options: [
-          { id: "A", text: "Mencari/Sedih", icon: "😢", isCorrect: true },
-          { id: "B", text: "Senang", icon: "😊", isCorrect: false },
-          { id: "C", text: "Kenyang", icon: "😋", isCorrect: false },
-        ]
-      },
-      {
-        id: 3,
-        image: "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Flushed%20face/3D/flushed_face_3d.png",
-        situation: "Sedang melamun, lalu temanmu mengagetkan dari belakang!",
-        options: [
-          { id: "A", text: "Sedih", icon: "😭", isCorrect: false },
-          { id: "B", text: "Terkejut", icon: "😳", isCorrect: true },
-          { id: "C", text: "Mengantuk", icon: "😴", isCorrect: false },
-        ]
-      }
-    ]
-  },
-  "5": {
-    title: "Ujian Pahlawan (BOSS)",
+
+  // ==========================================
+  // TIER 3: Usia 10+ Tahun (Fokus Ujian Pahlawan & Situasi Kompleks)
+  // ==========================================
+  "tier3": {
+    title: "Ujian Pahlawan",
     passingScore: 3, // Harus benar semua (3/3)
     questions: [
       {

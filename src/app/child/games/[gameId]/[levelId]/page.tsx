@@ -9,15 +9,32 @@ import { playSuccessSound, playErrorSound, playCoinSound, pauseBGM, resumeBGM } 
 import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-import { EMOTION_LEVELS } from "@/data/emotionLevels";
+import { EMOTION_DB } from "@/data/emotionLevels"; // ✅ UPDATE: Panggil EMOTION_DB yang baru
 import { MAGIC_WORDS_LEVELS } from "@/data/magicWordsLevels";
-// --- UPDATE 1: Import Data Detektif ---
 import { DETECTIVE_LEVELS } from "@/data/detectiveLevels";
 
 const ALL_GAME_DATA: Record<string, any> = {
-  "emotion": EMOTION_LEVELS,
+  "emotion": EMOTION_DB, // ✅ UPDATE
   "magic-words": MAGIC_WORDS_LEVELS,
-  "detective": DETECTIVE_LEVELS, // Daftarkan game detektif
+  "detective": DETECTIVE_LEVELS,
+};
+
+// Fungsi Pintar Topi Seleksi (Menentukan Tier Berdasarkan Umur)
+const getLevelDataByAge = (gameId: string, levelId: string, age: number | null) => {
+  const gameData = ALL_GAME_DATA[gameId];
+  if (!gameData) return null;
+
+  // Kalau gamenya BUKAN Tebak Perasaan (masih pakai sistem lama)
+  if (gameId !== "emotion") {
+    return gameData[levelId] || null;
+  }
+
+  // Khusus Tebak Perasaan (Dynamic Tier System)
+  const childAge = age || 5; // Default ke anak 5 tahun kalau data umur kosong
+  
+  if (childAge <= 6) return gameData["tier1"];
+  if (childAge >= 7 && childAge <= 9) return gameData["tier2"];
+  return gameData["tier3"]; // 10 tahun ke atas
 };
 
 export default function GameEngineLevel() {
@@ -27,15 +44,14 @@ export default function GameEngineLevel() {
   const gameId = params.gameId as string;
   const { activeChildId, addCoins } = useGameStore();
   
-  const levelData = ALL_GAME_DATA[gameId]?.[levelId];
-  const isDetective = gameId === "detective"; // Deteksi mode game
+  const isDetective = gameId === "detective";
 
-  // State Pilihan Ganda (Emotion & Magic Words)
+  // State Pilihan Ganda
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
 
-  // State Detektif (Tap & Drop)
+  // State Detektif
   const [remainingItems, setRemainingItems] = useState<any[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
@@ -45,26 +61,35 @@ export default function GameEngineLevel() {
   const [isFirstWin, setIsFirstWin] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [rawProgress, setRawProgress] = useState<Record<string, number>>({});
+  
+  // ✅ STATE BARU: Nyimpen data level yang udah difilter berdasarkan umur
+  const [levelData, setLevelData] = useState<any>(null);
 
-  // Setup Data Awal
-  useEffect(() => {
-    if (isDetective && levelData?.items) {
-      setRemainingItems(levelData.items);
-    }
-  }, [isDetective, levelData]);
-
+  // Setup Data Awal (Tarik Umur & Progress)
   useEffect(() => {
     const checkProgress = async () => {
       if (!activeChildId) return;
       try {
         const snap = await getDoc(doc(db, "children", activeChildId));
         if (snap.exists()) {
-          const progressData = snap.data().gameProgress || {};
+          const data = snap.data();
+          
+          // Tarik Progress
+          const progressData = data.gameProgress || {};
           setRawProgress(progressData);
-
           const currentLevelProgress = progressData[gameId] || 0;
           if (parseInt(levelId) <= currentLevelProgress) {
             setIsFirstWin(false); 
+          }
+
+          // Tarik Umur dan saring soalnya
+          const childAge = data.age || null;
+          const filteredLevelData = getLevelDataByAge(gameId, levelId, childAge);
+          setLevelData(filteredLevelData);
+
+          // Setup item kalau game detektif
+          if (isDetective && filteredLevelData?.items) {
+            setRemainingItems(filteredLevelData.items);
           }
         }
       } catch (error) {
@@ -74,7 +99,16 @@ export default function GameEngineLevel() {
       }
     };
     checkProgress();
-  }, [activeChildId, gameId, levelId]);
+  }, [activeChildId, gameId, levelId, isDetective]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+        <p className="font-bold text-slate-600 animate-pulse">Menyiapkan Arena...</p>
+      </div>
+    );
+  }
 
   if (!levelData) {
     return (
@@ -84,15 +118,6 @@ export default function GameEngineLevel() {
         <button onClick={() => router.replace(`/child/games/${gameId}`)} className="bg-indigo-500 text-white px-6 py-3 rounded-full font-black">
           Kembali ke Peta
         </button>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
-        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-        <p className="font-bold text-slate-600 animate-pulse">Menyiapkan Arena...</p>
       </div>
     );
   }
@@ -114,7 +139,6 @@ export default function GameEngineLevel() {
   const handlePlayAudio = () => {
     if (typeof window !== "undefined" && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel(); 
-      // Detektif baca Deskripsi, Pilihan Ganda baca Situasi
       const textToRead = isDetective ? levelData.description : currentQuestion.situation;
       const utterance = new SpeechSynthesisUtterance(textToRead);
       
@@ -155,13 +179,12 @@ export default function GameEngineLevel() {
 
   // --- LOGIKA MENJAWAB (DETEKTIF / TAP & DROP) ---
   const handleDetectiveContainerTap = (containerId: string) => {
-    if (!selectedItemId) return; // Harus pilih barang dulu
+    if (!selectedItemId) return; 
 
     const item = remainingItems.find(i => i.id === selectedItemId);
     if (!item) return;
 
     if (item.correctContainerId === containerId) {
-      // JAWABAN BENAR
       playSuccessSound();
       triggerHaptic("light");
       setScore(prev => prev + 1);
@@ -170,15 +193,13 @@ export default function GameEngineLevel() {
       setRemainingItems(newRemaining);
       setSelectedItemId(null);
 
-      // Kalau barang habis, Game Over
       if (newRemaining.length === 0) {
         setTimeout(() => setIsGameOver(true), 500);
       }
     } else {
-      // JAWABAN SALAH
       playErrorSound();
       triggerHaptic("heavy");
-      setSelectedItemId(null); // Lepas pilihan biar anak milih lagi
+      setSelectedItemId(null); 
     }
   };
 
@@ -217,7 +238,7 @@ export default function GameEngineLevel() {
 
   return (
     <GameShell
-      title={levelData.title}
+      title={levelData.title || "Misi KIDO"}
       score={score}
       maxScore={maxScore}
       isGameOver={isGameOver}
@@ -226,7 +247,7 @@ export default function GameEngineLevel() {
     >
       <div className="flex flex-col h-full p-4 bg-slate-50 relative overflow-hidden">
         
-        {/* Progress Bar Sederhana (Untuk Semua Game) */}
+        {/* Progress Bar Sederhana */}
         <div className="w-full bg-slate-200 rounded-full h-2.5 mb-4 shadow-inner border border-slate-300 flex-none">
           <div 
             className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all duration-500 relative"
@@ -239,27 +260,20 @@ export default function GameEngineLevel() {
         {!isGameOver && (
           <div className="flex-1 flex flex-col items-center w-full pb-2">
             
-            {/* =========================================
-                UI KHUSUS: DETEKTIF KAMAR (TAP & DROP)
-                ========================================= */}
+            {/* UI KHUSUS: DETEKTIF KAMAR */}
             {isDetective && (
               <div className="w-full h-full flex flex-col justify-between">
-                
-                {/* Bagian Atas: Instruksi & Wadah (Containers) */}
                 <div className="flex flex-col items-center">
                   <div className="bg-white px-6 py-3 rounded-[1.5rem] shadow-sm border-2 border-slate-100 w-full text-center mb-6">
                     <p className="text-slate-700 font-extrabold text-sm leading-snug">
                       {levelData.description}
                     </p>
                   </div>
-
-                  {/* Grid Wadah Container */}
                   <div className="flex justify-center gap-4 w-full">
                     {levelData.containers.map((container: any) => (
                       <button
                         key={container.id}
                         onClick={() => handleDetectiveContainerTap(container.id)}
-                        // Kalau ada barang terpilih, wadah nyala minta diklik
                         className={`w-32 h-36 rounded-[2rem] border-4 flex flex-col items-center justify-center gap-2 transition-all duration-300 shadow-md active:scale-95 ${container.color} ${selectedItemId ? 'ring-4 ring-indigo-400 ring-offset-2 animate-pulse' : ''}`}
                       >
                         <span className="text-5xl drop-shadow-md">{container.icon}</span>
@@ -269,7 +283,6 @@ export default function GameEngineLevel() {
                   </div>
                 </div>
 
-                {/* Bagian Bawah: Barang-barang Berantakan (Items) */}
                 <div className="bg-white/50 backdrop-blur-sm border-t-4 border-white p-4 -mx-4 rounded-t-[2.5rem] mt-6 flex-1 flex flex-col">
                   <div className="flex items-center justify-between mb-4 px-2">
                     <h3 className="font-black text-slate-700 text-sm">Barang Berantakan:</h3>
@@ -285,7 +298,6 @@ export default function GameEngineLevel() {
                         <button
                           key={item.id}
                           onClick={() => {
-                            // Toggle pilih barang
                             if (isSelected) setSelectedItemId(null);
                             else setSelectedItemId(item.id);
                           }}
@@ -296,7 +308,6 @@ export default function GameEngineLevel() {
                       );
                     })}
                     
-                    {/* Pesan kalau sudah bersih */}
                     {remainingItems.length === 0 && (
                       <div className="w-full text-center py-6 animate-in zoom-in">
                         <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
@@ -305,17 +316,13 @@ export default function GameEngineLevel() {
                     )}
                   </div>
                 </div>
-
               </div>
             )}
 
 
-            {/* =========================================
-                UI KHUSUS: PILIHAN GANDA (EMOTION & MAGIC)
-                ========================================= */}
+            {/* UI KHUSUS: PILIHAN GANDA (EMOTION & MAGIC) */}
             {!isDetective && currentQuestion && (
               <div className="w-full max-w-md mx-auto flex flex-col h-full">
-                {/* Visual Soal */}
                 <div className="w-28 h-28 bg-white rounded-[2rem] shadow-xl flex items-center justify-center mb-4 relative animate-in zoom-in duration-500 border-4 border-white transform transition-transform hover:scale-105 flex-none mx-auto">
                   <img src={currentQuestion.image} alt="Ilustrasi" className="w-20 h-20 object-contain drop-shadow-lg" />
                   {showFeedback && (
@@ -329,35 +336,44 @@ export default function GameEngineLevel() {
                   )}
                 </div>
 
-                {/* Teks Situasi */}
                 <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border-2 border-slate-100 w-full text-center mb-4 relative flex-none">
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-700 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">Pertanyaan {currentStep + 1}</div>
                   <p className="text-slate-700 font-extrabold text-base leading-snug mt-1">{currentQuestion.situation}</p>
                 </div>
 
-                {/* Tombol Audio */}
                 <button onClick={handlePlayAudio} className="w-full flex items-center justify-center gap-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 active:scale-95 px-4 py-3 rounded-2xl font-black mb-4 transition-all border-b-4 border-indigo-200 shadow-sm flex-none">
                   <Volume2 className="w-5 h-5" /> Dengarkan Cerita
                 </button>
 
-                {/* Opsi Jawaban */}
-                <div className="w-full space-y-2 flex-1 flex flex-col justify-end">
+                {/* ✅ UPDATE: Opsi Jawaban Dinamis (Rapi meski tanpa teks) */}
+                <div className={`w-full flex-1 flex justify-end gap-3 ${currentQuestion.options.every((o: any) => !o.text) ? "flex-row items-end pb-4" : "flex-col"}`}>
                   {currentQuestion.options.map((option: any) => {
                     const isSelected = selectedAnswer === option.id;
+                    const hasText = option.text && option.text.trim() !== "";
+                    
                     let btnStyle = "bg-white border-b-4 border-slate-200 text-slate-700 hover:border-slate-300";
                     if (showFeedback) {
                       if (option.isCorrect) btnStyle = "bg-emerald-50 border-b-4 border-emerald-500 text-emerald-800 scale-[1.02] shadow-md z-10 relative"; 
                       else if (isSelected) btnStyle = "bg-rose-50 border-b-4 border-rose-400 text-rose-800 opacity-70"; 
                       else btnStyle = "bg-slate-50 border-b-4 border-slate-200 text-slate-400 opacity-40 grayscale"; 
                     }
+
                     return (
-                      <button key={option.id} disabled={showFeedback} onClick={() => handleMultipleChoiceAnswer(option.isCorrect, option.id)} className={`w-full p-3 rounded-2xl flex items-center gap-3 transition-all duration-300 active:translate-y-1 active:border-b-0 ${btnStyle}`}>
-                        <span className="text-2xl bg-slate-100/50 w-12 h-12 flex items-center justify-center rounded-xl shadow-inner border border-white">{option.icon}</span>
-                        <span className="font-black text-base text-left">{option.text}</span>
+                      <button 
+                        key={option.id} 
+                        disabled={showFeedback} 
+                        onClick={() => handleMultipleChoiceAnswer(option.isCorrect, option.id)} 
+                        className={`p-3 rounded-2xl flex items-center transition-all duration-300 active:translate-y-1 active:border-b-0 ${btnStyle} ${hasText ? "w-full gap-3" : "flex-1 flex-col justify-center gap-1 aspect-square max-h-32"}`}
+                      >
+                        <span className={`bg-slate-100/50 flex items-center justify-center rounded-xl shadow-inner border border-white ${hasText ? "text-2xl w-12 h-12" : "text-4xl w-full h-full flex-1"}`}>
+                          {option.icon}
+                        </span>
+                        {hasText && <span className="font-black text-base text-left">{option.text}</span>}
                       </button>
                     );
                   })}
                 </div>
+
               </div>
             )}
             
