@@ -45,9 +45,9 @@ export default function RootLayout({
         {/* ✅ PASANG ANTENA PWA DI SINI */}
         <PWAListener />
 
-        {/* Masukkan Script Midtrans Sandbox di bawah ini untuk testing */}
+        {/* ✅ KABEL PRODUCTION: Script Midtrans Real (Kata sandbox dihapus!) */}
         <Script 
-          src="https://app.sandbox.midtrans.com/snap/snap.js" 
+          src="https://app.midtrans.com/snap/snap.js" 
           data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
           strategy="lazyOnload"
         />

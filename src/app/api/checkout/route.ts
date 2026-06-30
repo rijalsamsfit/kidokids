@@ -18,8 +18,8 @@ export async function POST(request: Request) {
     if (planType === "annual") planName = "KIDO Tahunan (Hemat)";
     if (planType === "lifetime") planName = "KIDO Lifetime VIP";
 
-    // Hit API Midtrans Sandbox untuk minta Snap Token
-    const response = await fetch("https://app.sandbox.midtrans.com/snap/v1/transactions", {
+    // ✅ UPDATE KUNCI: Hit API Midtrans PRODUCTION (Kata 'sandbox' sudah dihapus!)
+    const response = await fetch("https://app.midtrans.com/snap/v1/transactions", {
       method: "POST",
       headers: {
         "Accept": "application/json",

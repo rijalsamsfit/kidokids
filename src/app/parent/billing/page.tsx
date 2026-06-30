@@ -57,7 +57,7 @@ export default function BillingPage() {
     setProcessLoading(selectedPlan);
 
     try {
-      const orderId = `${selectedPlan}_${user.uid}_${Date.now()}`;
+      const orderId = `KIDO-${Date.now()}`;
       
       const response = await fetch("/api/checkout", {
         method: "POST",
