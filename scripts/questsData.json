@@ -1,0 +1,58 @@
+[
+  {
+    "gameId": "emotion",
+    "title": "Tebak Perasaan",
+    "description": "Latih empatimu dengan memahami perasaan orang lain.",
+    "theme": "from-pink-400 to-rose-500",
+    "totalLevels": 20,
+    "freeLevels": 5,
+    "tiers": {
+      "tier1": {
+        "title": "Kenali Wajah (Usia 4-6)",
+        "passingScore": 2,
+        "questions": [
+          {
+            "level": 1,
+            "gameType": "multiple-choice",
+            "scenario": "Es krim kesukaanmu tiba-tiba jatuh ke tanah. Bagaimana perasaanmu?",
+            "options": ["Sedih 😭", "Senang 😄", "Marah 😡"],
+            "correctAnswer": "Sedih 😭"
+          },
+          {
+            "level": 2,
+            "gameType": "multiple-choice",
+            "scenario": "Ibu membelikanmu mainan baru yang kamu inginkan! Bagaimana perasaanmu?",
+            "options": ["Takut 😨", "Senang 😄", "Sedih 😭"],
+            "correctAnswer": "Senang 😄"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "gameId": "detective",
+    "title": "Detektif Kamar",
+    "description": "Bantu rapikan barang-barang yang berantakan ke tempat asalnya.",
+    "theme": "from-teal-400 to-emerald-500",
+    "totalLevels": 20,
+    "freeLevels": 5,
+    "tiers": {
+      "tier1": {
+        "title": "Merapikan Mainan (Usia 4-6)",
+        "passingScore": 2,
+        "questions": [
+          {
+            "level": 1,
+            "gameType": "tap-match",
+            "scenario": "Pisahkan mainan dan pakaian kotor ini!",
+            "items": ["Mobil-mobilan 🚗", "Kaos Kaki 🧦", "Boneka Beruang 🧸", "Baju Kotor 👕"],
+            "containers": [
+              { "name": "Kotak Mainan 📦", "accepts": ["Mobil-mobilan 🚗", "Boneka Beruang 🧸"] },
+              { "name": "Keranjang Cucian 🧺", "accepts": ["Kaos Kaki 🧦", "Baju Kotor 👕"] }
+            ]
+          }
+        ]
+      }
+    }
+  }
+]
