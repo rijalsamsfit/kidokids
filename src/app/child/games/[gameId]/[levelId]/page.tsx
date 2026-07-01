@@ -24,17 +24,17 @@ const getLevelDataByAge = (gameId: string, levelId: string, age: number | null) 
   const gameData = ALL_GAME_DATA[gameId];
   if (!gameData) return null;
 
-  // Kalau gamenya BUKAN Tebak Perasaan (masih pakai sistem lama)
-  if (gameId !== "emotion") {
+  // Cek apakah game ini sudah pakai sistem Tier (ada "tier1")
+  if (!gameData["tier1"]) {
+    // Kalau belum (misal game "magic-words" yang belum dirombak), pakai sistem level lama
     return gameData[levelId] || null;
   }
 
-  // Khusus Tebak Perasaan (Dynamic Tier System)
-  const childAge = age || 5; // Default ke anak 5 tahun kalau data umur kosong
-  
+  // Kalau sudah pakai sistem Tier (Emotion & Detective), saring berdasarkan umur!
+  const childAge = age || 5; 
   if (childAge <= 6) return gameData["tier1"];
   if (childAge >= 7 && childAge <= 9) return gameData["tier2"];
-  return gameData["tier3"]; // 10 tahun ke atas
+  return gameData["tier3"]; 
 };
 
 export default function GameEngineLevel() {

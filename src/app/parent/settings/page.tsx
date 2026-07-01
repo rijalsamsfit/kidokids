@@ -16,7 +16,7 @@ import {
 import { 
   ArrowLeft, Users, UserPlus, Eye, EyeOff, Clock, Moon, 
   ShieldCheck, CreditCard, LogOut, X, Loader2, ChevronRight, Settings,
-  Tv, Crown, Edit3, Camera, Image as ImageIcon, Smartphone, DownloadCloud, CheckCircle2 // ✅ TAMBAH IKON BARU
+  Tv, Crown, Edit3, Camera, Image as ImageIcon, Smartphone, DownloadCloud, CheckCircle2
 } from "lucide-react";
 import Link from "next/link";
 import { useParentStore } from "@/store/useParentStore";
@@ -106,12 +106,10 @@ export default function SettingsPage() {
   // ✅ LOGIKA TOMBOL DOWNLOAD PWA
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    // Munculkan pop-up install bawaan Chrome yang udah kita bajak
     deferredPrompt.prompt();
-    // Tunggu pilihan Ortu (di-install atau di-cancel)
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
-      clearPrompt(); // Kalau sukses, bersihkan sinyal
+      clearPrompt(); 
     }
   };
 
@@ -326,12 +324,17 @@ export default function SettingsPage() {
                  <h3 className="font-black text-lg text-slate-800">{parentData?.name || "Orang Tua"}</h3>
                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500 mt-1">
                    <span>PIN Rahasia:</span>
-                   <span className="font-mono tracking-widest bg-slate-100 px-2 py-0.5 rounded-md">
-                     {visiblePins["parent"] ? parentData?.pin : "••••"}
-                   </span>
-                   <button onClick={() => togglePinVisibility("parent")} className="hover:text-indigo-600">
-                     {visiblePins["parent"] ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
-                   </button>
+                   
+                   {/* ✅ UPDATE UI PIN ORANG TUA (Anti Tumpang Tindih) */}
+                   <div className="flex items-center justify-between w-[5.5rem] bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                     <span className="font-mono font-black text-slate-700 tracking-[0.2em] mt-0.5">
+                       {visiblePins["parent"] ? parentData?.pin : "••••"}
+                     </span>
+                     <button onClick={() => togglePinVisibility("parent")} className="text-slate-400 hover:text-indigo-600 transition-colors">
+                       {visiblePins["parent"] ? <EyeOff className="w-3.5 h-3.5"/> : <Eye className="w-3.5 h-3.5"/>}
+                     </button>
+                   </div>
+                   
                  </div>
                </div>
             </div>
@@ -375,9 +378,12 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       
-                      <button onClick={() => togglePinVisibility(child.id)} className="text-slate-400 flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-                        {visiblePins[child.id] ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
-                        <span className="font-mono font-bold text-sm tracking-widest">{visiblePins[child.id] ? child.pin : "••••"}</span>
+                      {/* ✅ UPDATE UI PIN ANAK (Anti Tumpang Tindih) */}
+                      <button onClick={() => togglePinVisibility(child.id)} className="group flex items-center justify-between w-[5.5rem] bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm">
+                        <span className="font-mono font-bold text-sm tracking-[0.2em] text-slate-600 mt-0.5">
+                          {visiblePins[child.id] ? child.pin : "••••"}
+                        </span>
+                        {visiblePins[child.id] ? <EyeOff className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors"/> : <Eye className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors"/>}
                       </button>
                     </div>
 

@@ -26,6 +26,8 @@ export default function ParentAnalytics() {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [loadingText, setLoadingText] = useState("Membaca Jurnal..."); // ✅ AI Loading Effect
+  
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -38,7 +40,6 @@ export default function ParentAnalytics() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        // Panggil Zustand untuk kasta Ortu
         fetchParentData();
 
         try {
@@ -65,7 +66,7 @@ export default function ParentAnalytics() {
     return () => unsubscribe();
   }, [router, fetchParentData]);
 
-  // 2. Tarik Riwayat Analisis Terakhir, Statistik, & Data Grafik saat Anak dipilih
+  // 2. Tarik Riwayat Analisis Terakhir, Statistik, & Data Grafik
   useEffect(() => {
     if (!selectedChild) return;
 
@@ -94,12 +95,10 @@ export default function ParentAnalytics() {
           const data = doc.data();
           if (data.status === 'completed' || data.status === 'approved') {
             completed++;
-            
             const timestamp = data.completedAt || data.createdAt; 
             if (timestamp) {
               const missionDate = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
               const dateString = missionDate.toISOString().split('T')[0];
-              
               const dayIndex = last7Days.findIndex(d => d.dateStr === dateString);
               if (dayIndex !== -1) {
                 last7Days[dayIndex].missions++;
@@ -140,7 +139,6 @@ export default function ParentAnalytics() {
     if (parentPlan === "basic") {
       return { isLocked: true, type: "premium_required", daysLeft: 0 };
     }
-
     if (!lastAnalysisDate) return { isLocked: false, type: "none", daysLeft: 0 };
 
     const now = new Date();
@@ -157,13 +155,26 @@ export default function ParentAnalytics() {
 
   const access = checkAccess();
 
-  // 3. Eksekusi Gemini
+  // ✅ 3. Efek Animasi Teks AI
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isAnalyzing) {
+      const texts = ["Mengumpulkan data...", "Menganalisa kebiasaan...", "Menulis laporan..."];
+      let i = 0;
+      interval = setInterval(() => {
+        i = (i + 1) % texts.length;
+        setLoadingText(texts[i]);
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [isAnalyzing]);
+
+  // 4. Eksekusi Gemini
   const handleAnalyze = async () => {
     if (access.type === "premium_required") {
       router.push("/parent/billing");
       return;
     }
-
     if (!selectedChild || access.isLocked) return;
     
     setIsAnalyzing(true);
@@ -241,7 +252,7 @@ export default function ParentAnalytics() {
 
         <div className="relative z-10">
           <h1 className="text-3xl font-black mb-1 tracking-tight flex items-center gap-2">
-            Analisis AI <Sparkles className="w-6 h-6 text-yellow-300 fill-yellow-300" />
+            Analisis AI <Sparkles className="w-6 h-6 text-yellow-300 fill-yellow-300 animate-pulse" />
           </h1>
           <p className="text-purple-100 text-sm font-bold">Asisten parenting cerdas bertenaga Gemini</p>
         </div>
@@ -339,10 +350,10 @@ export default function ParentAnalytics() {
                     </div>
                   </div>
 
-                  {/* 🤖 KOTAK KONSULTASI AI (Tergabung: Empty State + Paywall) */}
+                  {/* 🤖 KOTAK KONSULTASI AI */}
                   <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm text-center relative overflow-hidden animate-in slide-in-from-bottom-4 duration-500 mt-6">
                     
-                    {/* 🔒 PAYWALL OVERLAY KASTA BASIC (Paling Atas) */}
+                    {/* 🔒 PAYWALL OVERLAY KASTA BASIC */}
                     {access.type === "premium_required" && (
                       <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
                         <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mb-4 shadow-lg border-2 border-amber-200">
@@ -360,7 +371,6 @@ export default function ParentAnalytics() {
                       </div>
                     )}
 
-                    {/* KONTEN KARTU (Berubah sesuai jumlah misi, dan akan buram jika kena Paywall) */}
                     <div className={access.type === "premium_required" ? "opacity-30 pointer-events-none blur-sm transition-all" : ""}>
                       
                       {stats.completedMissions === 0 && !analysisResult ? (
@@ -371,7 +381,7 @@ export default function ParentAnalytics() {
                           </div>
                           <h3 className="font-black text-slate-800 text-xl mb-2">Bip-bop! Data Belum Cukup</h3>
                           <p className="text-slate-500 text-sm mb-8 leading-relaxed px-2">
-                            Robot AI belum punya bahan untuk berpikir. AI membutuhkan setidaknya beberapa misi yang diselesaikan oleh <strong>{selectedChild.name}</strong> untuk mulai menyusun laporan analisis karakter.
+                            Robot AI belum punya bahan untuk berpikir. AI membutuhkan setidaknya beberapa misi yang diselesaikan oleh <strong>{selectedChild.name}</strong>.
                           </p>
                           <button
                             onClick={() => router.push("/parent")}
@@ -381,10 +391,10 @@ export default function ParentAnalytics() {
                           </button>
                         </div>
                       ) : (
-                        /* KONTEN B: READY STATE (ADA MISI / ADA RIWAYAT) */
+                        /* KONTEN B: READY STATE */
                         <div className="py-2">
                           <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Bot className="w-8 h-8 text-purple-600" />
+                            <Bot className={`w-8 h-8 text-purple-600 ${isAnalyzing ? "animate-pulse" : ""}`} />
                           </div>
                           <h3 className="font-black text-slate-800 text-xl mb-2">Konsultasi Aktivitas {selectedChild.name}</h3>
                           <p className="text-slate-500 text-sm mb-6 px-4">
@@ -398,7 +408,7 @@ export default function ParentAnalytics() {
                               <div className="flex flex-col">
                                 <span className="text-sm font-bold text-amber-900">Kuota Evaluasi Mingguan</span>
                                 <span className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-                                  AI butuh waktu merekam perkembangan konsistensi anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{access.daysLeft} hari lagi</strong>.
+                                  AI butuh waktu merekam perkembangan anak. Evaluasi berikutnya terbuka dalam <strong className="text-amber-950 font-extrabold">{access.daysLeft} hari lagi</strong>.
                                 </span>
                               </div>
                             </div>
@@ -419,7 +429,7 @@ export default function ParentAnalytics() {
                             {isAnalyzing ? (
                               <>
                                 <Loader2 className="w-6 h-6 animate-spin" />
-                                Membaca Jurnal...
+                                {loadingText}
                               </>
                             ) : access.type === "cooldown" ? (
                               <>
@@ -452,18 +462,19 @@ export default function ParentAnalytics() {
                         <div className="bg-white p-6 rounded-[22px] h-full">
                           <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
                             <div className="p-2 bg-purple-100 rounded-xl">
-                              <Sparkles className="w-6 h-6 text-purple-600 fill-purple-600" />
+                              <Sparkles className="w-6 h-6 text-purple-600 fill-purple-600 animate-pulse" />
                             </div>
                             <div>
                               <h3 className="font-black text-slate-800 text-lg">Catatan Asisten</h3>
                               <div className="flex items-center gap-1 text-slate-400 text-xs font-bold uppercase tracking-wider">
                                 <Calendar className="w-3 h-3" />
-                                {lastAnalysisDate ? new Date(lastAnalysisDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Hari Ini'}
+                                {lastAnalysisDate ? new Date(lastAnalysisDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Hari Ini'}
                               </div>
                             </div>
                           </div>
 
-                          <div className="prose prose-slate max-w-none prose-p:font-semibold prose-p:text-slate-800 prose-headings:font-black prose-headings:text-slate-900 prose-strong:text-purple-700 prose-strong:font-black prose-li:font-semibold prose-li:text-slate-800 prose-p:leading-relaxed">
+                          {/* AREA RENDER MARKDOWN */}
+                          <div className="prose prose-slate max-w-none prose-p:font-semibold prose-p:text-slate-600 prose-headings:font-black prose-headings:text-slate-900 prose-strong:text-purple-700 prose-strong:font-black prose-li:font-semibold prose-li:text-slate-700 prose-p:leading-relaxed marker:text-purple-500">
                             <ReactMarkdown>{analysisResult}</ReactMarkdown>
                           </div>
                         </div>
