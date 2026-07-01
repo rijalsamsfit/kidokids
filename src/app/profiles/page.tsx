@@ -200,26 +200,29 @@ export default function ProfileSelector() {
             </p>
 
             <form onSubmit={handleParentAccess} className="space-y-4">
-              <div className="relative max-w-[200px] mx-auto">
+              {/* ✅ UPDATE: WADAH DIPERLEBAR JADI 240px BIAR LEGA */}
+              <div className="relative max-w-[240px] mx-auto">
                 <input
                   type={showPin ? "text" : "password"}
                   maxLength={4}
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
                   placeholder="••••"
-                  className="w-full tracking-[1.5em] text-center text-2xl font-black bg-slate-50 border-2 border-slate-200 rounded-2xl py-4 focus:outline-none focus:border-indigo-500 text-slate-800 placeholder-slate-300 pl-[1.5em] transition-colors"
+                  // ✅ UPDATE: PENYESUAIAN PADDING & TRACKING BIAR GAK NABRAK
+                  className="w-full tracking-[1em] pl-[1em] pr-12 text-center text-2xl font-black bg-slate-50 border-2 border-slate-200 rounded-2xl py-4 focus:outline-none focus:border-indigo-500 text-slate-800 placeholder-slate-300 transition-colors"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPin(!showPin)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  // ✅ UPDATE: IKON DIKUNCI DI KANAN
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 p-1"
                 >
                   {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
 
-              {/* Notif Error PIN Langsung di Bawah Input (Gak usah Alert Pop-up biar gak ribet) */}
+              {/* Notif Error PIN */}
               {pinError && (
                 <p className="text-rose-500 text-xs font-bold bg-rose-50 border border-rose-100 py-2 px-3 rounded-xl animate-shake">
                   {pinError}
