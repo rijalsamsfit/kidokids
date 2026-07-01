@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/useGameStore";
-import { useModalStore } from "@/store/useModalStore"; // ✅ IMPORT PABRIK POP-UP
+import { useModalStore } from "@/store/useModalStore";
 import { Lock, User, Plus, Loader2, X, Eye, EyeOff } from "lucide-react";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -12,10 +12,14 @@ import { onAuthStateChanged } from "firebase/auth";
 export default function ProfileSelector() {
   const router = useRouter();
   const { setActiveChild } = useGameStore(); 
-  const { showAlert } = useModalStore(); // ✅ GUNAKAN CUSTOM ALERT
+  const { showAlert } = useModalStore(); 
 
   const [parentName, setParentName] = useState("Orang Tua");
-  const [realPin, setRealPin] = useState<string | null>(null); // ✅ SIMPAN PIN ASLI DARI DATABASE
+  const [realPin, setRealPin] = useState<string | null>(null); 
+  
+  // ✅ 1. STATE BARU: NYIMPEN STATUS VIP ORANG TUA
+  const [parentPlan, setParentPlan] = useState<"basic" | "pro" | "annual" | "lifetime">("basic"); 
+  
   const [children, setChildren] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -25,20 +29,20 @@ export default function ProfileSelector() {
   const [showPin, setShowPin] = useState(false);
   const [pinError, setPinError] = useState("");
 
-  // 1. Cek Auth & Tarik Daftar Anak + Data Ortu dari Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // ✅ A. TARIK DATA ORANG TUA (Biar Nama & PIN sesuai yang didaftarkan)
           const parentSnap = await getDoc(doc(db, "parents", user.uid));
           if (parentSnap.exists()) {
             const pData = parentSnap.data();
             setParentName(pData.name || "Orang Tua");
             setRealPin(pData.pin || null);
+            
+            // ✅ 2. TARIK KASTA VIP/BASIC DARI DATABASE ORTU!
+            setParentPlan(pData.subscriptionPlan || "basic"); 
           }
 
-          // ✅ B. TARIK DATA ANAK
           const q = query(collection(db, "children"), where("parentId", "==", user.uid));
           const querySnapshot = await getDocs(q);
           const kidsList: any[] = [];
@@ -61,7 +65,7 @@ export default function ProfileSelector() {
     return () => unsubscribe();
   }, [router, showAlert]);
 
-  // 2. Logika Masuk ke Profil Anak
+  // ✅ 3. SAAT ANAK DI-KLIK, SUNTIKAN TIKET VIP ORTU KE DALAM RANSEL ANAK!
   const handleSelectChild = (child: any) => {
     setActiveChild(
       child.id,
@@ -70,12 +74,14 @@ export default function ProfileSelector() {
       child.level || 1,
       child.coins || 0,
       child.missionsCompleted || 0,
-      child.unlockedBadges || []
+      child.unlockedBadges || [],
+      parentPlan, // 🎯 BINGO! KIRIM TIKET VIP-NYA KE TAS!
+      child.streak || 0,
+      child.lastStreakDate || null
     );
     router.push("/child"); 
   };
 
-  // 3. ✅ UPDATE: LOGIKA VALIDASI PIN ORANG TUA ASLI DARI DATABASE
   const handleParentAccess = (e: React.FormEvent) => {
     e.preventDefault();
     setPinError("");
@@ -91,7 +97,7 @@ export default function ProfileSelector() {
       router.push("/parent"); 
     } else {
       setPinError("PIN Salah! Coba diingat-ingat lagi.");
-      setPinInput(""); // Kosongin input biar ngetik ulang
+      setPinInput(""); 
     }
   };
 
@@ -107,15 +113,13 @@ export default function ProfileSelector() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans selection:bg-indigo-200">
       
-      {/* Judul Utama */}
       <h1 className="text-3xl md:text-4xl font-black text-slate-800 text-center mb-12 tracking-tight animate-in fade-in slide-in-from-top-6 duration-700">
         Siapa yang bermain hari ini?
       </h1>
 
-      {/* Grid Profil */}
       <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12 max-w-4xl w-full">
         
-        {/* PROFIL 1: ORANG TUA (Selalu Ada) */}
+        {/* PROFIL 1: ORANG TUA */}
         <div className="flex flex-col items-center gap-3 group">
           <button
             onClick={() => setShowPinModal(true)}
@@ -133,7 +137,7 @@ export default function ProfileSelector() {
           </span>
         </div>
 
-        {/* PROFIL DAFTAR ANAK (Dinamis dari Firebase) */}
+        {/* PROFIL DAFTAR ANAK */}
         {children.map((child) => (
           <div key={child.id} className="flex flex-col items-center gap-3 group">
             <button
@@ -142,7 +146,6 @@ export default function ProfileSelector() {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 to-orange-500/20 opacity-0 group-hover:opacity-100 transition-opacity z-0"></div>
               
-              {/* ✅ MENDUKUNG FOTO ASLI VIP */}
               {child.photoUrl ? (
                 <img src={child.photoUrl} alt={child.name} className="w-full h-full object-cover relative z-10" />
               ) : (
@@ -174,7 +177,7 @@ export default function ProfileSelector() {
 
       </div>
 
-      {/* MODAL POP-UP PIN KEAMANAN ORANG TUA (PREMIUM STYLE) */}
+      {/* MODAL POP-UP PIN KEAMANAN ORANG TUA */}
       {showPinModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white border border-slate-100 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-200 text-center">
@@ -200,7 +203,6 @@ export default function ProfileSelector() {
             </p>
 
             <form onSubmit={handleParentAccess} className="space-y-4">
-              {/* ✅ UPDATE: WADAH DIPERLEBAR JADI 240px BIAR LEGA */}
               <div className="relative max-w-[240px] mx-auto">
                 <input
                   type={showPin ? "text" : "password"}
@@ -208,21 +210,18 @@ export default function ProfileSelector() {
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
                   placeholder="••••"
-                  // ✅ UPDATE: PENYESUAIAN PADDING & TRACKING BIAR GAK NABRAK
                   className="w-full tracking-[1em] pl-[1em] pr-12 text-center text-2xl font-black bg-slate-50 border-2 border-slate-200 rounded-2xl py-4 focus:outline-none focus:border-indigo-500 text-slate-800 placeholder-slate-300 transition-colors"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPin(!showPin)}
-                  // ✅ UPDATE: IKON DIKUNCI DI KANAN
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 p-1"
                 >
                   {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
 
-              {/* Notif Error PIN */}
               {pinError && (
                 <p className="text-rose-500 text-xs font-bold bg-rose-50 border border-rose-100 py-2 px-3 rounded-xl animate-shake">
                   {pinError}
