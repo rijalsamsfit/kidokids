@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link"; // ✅ OBAT ANTI LEMOT: Navigasi instan
+import Link from "next/link"; 
 import { ChevronLeft, Lock, Star } from "lucide-react";
 import { useGameStore } from "@/store/useGameStore";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// ✅ IMPORT PABRIK POP-UP KIDO
 import { useModalStore } from "@/store/useModalStore";
 
 // --- DAFTARKAN GAME DI SINI ---
@@ -49,31 +48,31 @@ export default function LevelMap() {
   const gameInfo = GAME_DB[gameId];
 
   const { activeChildId } = useGameStore();
-  const { showAlert } = useModalStore(); // ✅ CUSTOM POP-UP
+  const { showAlert } = useModalStore(); 
   
   const [currentProgressLevel, setCurrentProgressLevel] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
+
+  // ✅ 1. SIAPKAN GPS PELACAK (KAMERA DRONE)
+  const activeLevelRef = useRef<HTMLDivElement>(null);
 
   // Tarik data progress anak dan kasta Ortu dari Firebase
   useEffect(() => {
     const fetchProgressAndPlan = async () => {
       if (!activeChildId) return;
       try {
-        // 1. Tarik Laci Anak
         const childSnap = await getDoc(doc(db, "children", activeChildId));
         if (childSnap.exists()) {
           const childData = childSnap.data();
           const progress = childData.gameProgress?.[gameId] || 0;
           setCurrentProgressLevel(progress + 1); 
 
-          // 2. Intip Laci Ortu pakai parentId dari data anak
           const parentId = childData.parentId;
           if (parentId) {
             const parentSnap = await getDoc(doc(db, "parents", parentId));
             if (parentSnap.exists()) {
               const parentData = parentSnap.data();
-              // Kalau langganannya bukan basic, gembok terbuka!
               if (parentData.subscriptionPlan && parentData.subscriptionPlan !== "basic") {
                 setIsPremium(true);
               }
@@ -89,19 +88,32 @@ export default function LevelMap() {
     fetchProgressAndPlan();
   }, [activeChildId, gameId]);
 
+  // ✅ 2. MESIN KAMERA DRONE: AUTO-SCROLL KE BAWAH!
+  useEffect(() => {
+    if (!isLoading && activeLevelRef.current) {
+      // Kasih jeda 500ms biar peta ke-render sempurna dulu, baru meluncur
+      setTimeout(() => {
+        activeLevelRef.current?.scrollIntoView({
+          behavior: "smooth", 
+          block: "center",    // Taruh levelnya pas di tengah layar
+        });
+      }, 500);
+    }
+  }, [isLoading, currentProgressLevel]);
+
   if (!gameInfo) {
     return <div className="p-10 text-center font-bold">Game tidak ditemukan!</div>;
   }
 
   const levels = Array.from({ length: gameInfo.totalLevels }, (_, i) => i + 1);
 
-  // ✅ LOGIKA PENEMPATAN ZIG-ZAG (S-CURVE)
+  // LOGIKA PENEMPATAN ZIG-ZAG (S-CURVE)
   const getZigZagClass = (levelNum: number) => {
     const mod = levelNum % 4;
-    if (mod === 1) return "self-start ml-6";         // Kiri
-    if (mod === 2) return "self-center mr-12";       // Tengah agak Kiri
-    if (mod === 3) return "self-end mr-6";           // Kanan
-    if (mod === 0) return "self-center ml-12";       // Tengah agak Kanan
+    if (mod === 1) return "self-start ml-6";         
+    if (mod === 2) return "self-center mr-12";       
+    if (mod === 3) return "self-end mr-6";           
+    if (mod === 0) return "self-center ml-12";       
     return "";
   };
 
@@ -111,7 +123,6 @@ export default function LevelMap() {
       {/* Header Level Map */}
       <div className="p-6 sticky top-0 z-30 bg-black/10 backdrop-blur-md border-b border-white/10 shadow-sm">
         <div className="flex items-center gap-4">
-          {/* ✅ OBAT ANTI LEMOT: Pakai Link */}
           <Link 
             href="/child/games"
             className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors active:scale-90"
@@ -130,10 +141,8 @@ export default function LevelMap() {
         {isLoading ? (
           <div className="text-center text-white font-bold animate-pulse">Membentangkan Peta...</div>
         ) : (
-          /* ✅ flex-col-reverse BIKIN LEVEL 1 ADA DI PALING BAWAH LAYAR */
           <div className="flex flex-col-reverse relative gap-6 pb-12">
             
-            {/* Garis Putus-Putus Dekoratif di Belakang */}
             <div className="absolute top-10 bottom-10 left-1/2 w-0 border-l-4 border-dashed border-white/20 -translate-x-1/2 z-0 pointer-events-none"></div>
 
             {levels.map((levelNum) => {
@@ -142,14 +151,17 @@ export default function LevelMap() {
               const isPlayable = levelNum === currentProgressLevel && !isLockedByPremium;
               const isLockedByProgress = levelNum > currentProgressLevel && !isLockedByPremium;
 
-              // Styling Bulatan Proporsional Berdasarkan Status
-              let btnStyle = "bg-white/50 text-white/50 border-b-4 border-white/20"; // Terkunci Progress (Belum sampe)
-              if (isLockedByPremium) btnStyle = "bg-slate-800 text-slate-500 border-b-4 border-slate-900 shadow-md"; // Gembok VIP
-              if (isPlayable) btnStyle = "bg-white text-rose-500 border-b-4 border-rose-300 shadow-xl animate-bounce"; // Siap Main
-              if (isCompleted) btnStyle = "bg-emerald-400 text-white border-b-4 border-emerald-600 shadow-md"; // Lulus
+              let btnStyle = "bg-white/50 text-white/50 border-b-4 border-white/20"; 
+              if (isLockedByPremium) btnStyle = "bg-slate-800 text-slate-500 border-b-4 border-slate-900 shadow-md"; 
+              if (isPlayable) btnStyle = "bg-white text-rose-500 border-b-4 border-rose-300 shadow-xl animate-bounce"; 
+              if (isCompleted) btnStyle = "bg-emerald-400 text-white border-b-4 border-emerald-600 shadow-md"; 
 
               return (
-                <div key={levelNum} className={`flex flex-col items-center gap-2 z-10 ${getZigZagClass(levelNum)} relative group`}>
+                <div 
+                  key={levelNum} 
+                  ref={isPlayable ? activeLevelRef : null} // ✅ 3. PASANG GPS DI LEVEL YANG SEDANG AKTIF
+                  className={`flex flex-col items-center gap-2 z-10 ${getZigZagClass(levelNum)} relative group`}
+                >
                   
                   {isPlayable && (
                     <div className="absolute -top-3 text-[10px] font-black bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full z-20 shadow-sm animate-pulse">MULAI</div>
@@ -162,7 +174,6 @@ export default function LevelMap() {
                         e.preventDefault();
                       } else if (isLockedByPremium) {
                         e.preventDefault();
-                        // ✅ PANGGIL POP-UP KIDO BUAT PESTER POWER
                         showAlert(
                           "Level VIP Dikunci! 🔒",
                           "Wah, petualangan ini masih digembok! Minta tolong Ayah atau Ibu pakai Kunci VIP-nya ya!"
@@ -187,7 +198,6 @@ export default function LevelMap() {
                     )}
                   </Link>
                   
-                  {/* Visual Bintang (Kalau udah lulus) */}
                   <div className="flex gap-0.5 bg-black/10 px-2 py-1 rounded-full backdrop-blur-sm">
                     {[1, 2, 3].map((star) => (
                       <Star 
